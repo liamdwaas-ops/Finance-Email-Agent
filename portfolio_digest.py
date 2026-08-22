@@ -51,6 +51,16 @@ HOLDINGS = (
     Holding("Arm Holdings (ARM)", '"Arm Holdings" OR "Arm Ltd"', ("arm holdings", "arm ltd", "arm chip")),
     Holding("NVIDIA (NVDA)", 'NVIDIA OR "Nvidia Corporation"', ("nvidia",)),
     Holding("Hyperliquid (HYPE)", 'Hyperliquid OR "HYPE token"', ("hyperliquid", "hype token")),
+    Holding("Aave (AAVE)", 'Aave OR "AAVE protocol"', ("aave", "aave protocol")),
+    Holding("HyperLend", 'HyperLend OR "Hyper Lend"', ("hyperlend", "hyper lend")),
+    Holding("Bitcoin (BTC)", 'Bitcoin OR BTC', ("bitcoin", "btc")),
+    Holding("Ethereum (ETH)", 'Ethereum OR ETH', ("ethereum", "eth")),
+    Holding("Kinetiq (KNTQ)", 'Kinetiq OR KNTQ', ("kinetiq", "kntq")),
+    Holding("Tether (USDT)", 'Tether OR USDT', ("tether", "usdt")),
+    Holding("USD Coin (USDC)", '"USD Coin" OR USDC OR Circle', ("usd coin", "usdc", "circle")),
+    Holding("Ethena USDe", '"Ethena USDe" OR USDe', ("ethena usde", "usde")),
+    Holding("Ethena (ENA)", 'Ethena OR "ENA token"', ("ethena", "ena token")),
+    Holding("Rabby Wallet", '"Rabby Wallet" OR Rabby', ("rabby wallet", "rabby")),
     Holding("NUKZ ETF", 'NUKZ ETF OR "Range Nuclear Renaissance Index"', ("nukz", "nuclear"), "nuclear-energy holdings and policy"),
     Holding("Health Care Select Sector SPDR (XLV)", 'XLV ETF OR "Health Care Select Sector SPDR"', ("xlv", "health care select", "eli lilly", "unitedhealth", "johnson & johnson", "abbvie", "merck"), "major constituents, pharma, health policy"),
     Holding("Vanguard S&P 500 ETF (VOO)", 'VOO ETF OR "S&P 500"', ("voo", "s&p 500", "federal reserve"), "index-wide macro and major constituents"),
@@ -74,8 +84,9 @@ SPECULATION = re.compile(
     re.IGNORECASE,
 )
 REPUTABLE_SOURCES = {
-    "abc news", "associated press", "cnbc", "reuters", "the motley fool",
-    "the motley fool australia", "yahoo finance", "yahoo finance australia",
+    "abc news", "associated press", "blockworks", "cnbc", "coindesk", "decrypt",
+    "dl news", "reuters", "the block", "the motley fool", "the motley fool australia",
+    "unchained crypto", "yahoo finance", "yahoo finance australia",
 }
 MARKET_QUERIES = (
     '"Scott Bessent" OR Treasury OR "Federal Reserve"',
@@ -264,7 +275,11 @@ def save_history(history: dict[str, str]) -> None:
 
 def relevant(holding: Holding, story: dict[str, str]) -> bool:
     title = story["title"]
-    mentions_holding = any(alias in title.lower() for alias in holding.aliases)
+    title_lower = title.lower()
+    mentions_holding = any(
+        alias in title_lower if " " in alias else bool(re.search(rf"\b{re.escape(alias)}\b", title_lower))
+        for alias in holding.aliases
+    )
     reputable_source = story["source"].lower() in REPUTABLE_SOURCES
     return is_recent(story) and reputable_source and mentions_holding and bool(CATALYST.search(title)) and not bool(PRICE_ONLY.search(title)) and not bool(ROUTINE_MOVE.search(title)) and not bool(SPECULATION.search(title))
 

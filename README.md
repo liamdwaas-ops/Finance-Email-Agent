@@ -2,6 +2,8 @@
 
 This agent gathers relevant, recent news for the portfolio, removes stories already sent, writes a concise email brief, and sends it at 7:00am Australia/Sydney time.
 
+In addition to the listed equities and ETFs, it tracks Hyperliquid, Aave, HyperLend, Bitcoin, Ethereum, Kinetiq, Tether/USDT, USD Coin/USDC, Ethena USDe, Ethena/ENA, and Rabby Wallet.
+
 It intentionally excludes routine price moves. Material moves can be included when an article describes the reason (earnings, guidance, analyst action, regulation, a major product event, etc.).
 
 ## One-time setup
@@ -44,7 +46,7 @@ The installer attempts to run at 7:00am daily using the host's `Australia/Sydney
 
 ## Sources and editorial rules
 
-The agent uses Google News RSS searches targeted at high-quality, freely accessible finance and company sources (including Motley Fool Australia, Yahoo Finance, Reuters, CNBC, Associated Press, and ABC News). It excludes publishers that require a login or normally put articles behind a paywall, including Bloomberg, FT, WSJ, and The Australian. It also queries broad web news for political, regulatory, industry, and macro developments directly relevant to each holding.
+The agent uses Google News RSS searches targeted at high-quality, freely accessible finance and company sources (including Motley Fool Australia, Yahoo Finance, Reuters, CNBC, Associated Press, ABC News, CoinDesk, The Block, Decrypt, Blockworks, and DL News). It excludes publishers that require a login or normally put articles behind a paywall, including Bloomberg, FT, WSJ, and The Australian. It also queries broad web news for political, regulatory, industry, and macro developments directly relevant to each holding.
 
 Items must be no more than three days old and match meaningful catalysts. Each shortlisted article is opened and its lead paragraphs are scanned; cookie banners, popups, subscription prompts, and disclaimers are discarded. The email provides a 1-2 sentence event-focused summary before the source link. Opinion/speculation such as “which stock is better?” and ordinary price-move pieces are excluded. A durable local history, plus title/content-similarity checks, prevents duplicate or syndicated versions of the same story appearing again.
 
