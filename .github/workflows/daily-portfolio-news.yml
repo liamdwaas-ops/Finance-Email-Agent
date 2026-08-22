@@ -1,0 +1,41 @@
+name: Daily Portfolio News Brief
+
+on:
+  schedule:
+    # 07:00 AEST (UTC+10) on the following UTC date.
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the latest sent-story history
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install --requirement requirements.txt
+
+      - name: Send daily brief
+        env:
+          PORTFOLIO_GMAIL_USER: ${{ secrets.PORTFOLIO_GMAIL_USER }}
+          PORTFOLIO_GMAIL_APP_PASSWORD: ${{ secrets.PORTFOLIO_GMAIL_APP_PASSWORD }}
+          PORTFOLIO_RECIPIENT: ${{ secrets.PORTFOLIO_RECIPIENT }}
+        run: python portfolio_digest.py
+
+      - name: Save sent-story history
+        run: |
+          git config user.name "portfolio-news-bot"
+          git config user.email "portfolio-news-bot@users.noreply.github.com"
+          git add data/sent_stories.json
+          git diff --cached --quiet || git commit -m "chore: update sent-story history"
+          git push

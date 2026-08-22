@@ -1,0 +1,6 @@
+.env
+**/.env
+.env - Copy.example
+data/*
+!data/sent_stories.json
+__pycache__/
