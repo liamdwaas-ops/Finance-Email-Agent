@@ -1,6 +1,9 @@
 name: Daily Portfolio News Brief
 
 on:
+  push:
+    branches:
+      - 'test-digest-*'
   schedule:
     # 07:00 AEST (UTC+10) on the following UTC date.
     - cron: '0 21 * * *'
