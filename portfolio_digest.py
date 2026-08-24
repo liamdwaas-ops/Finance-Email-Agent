@@ -95,11 +95,16 @@ MARKET_QUERIES = (
 )
 STOP_WORDS = frozenset("a an and are as at be by for from how in is it its of on or that the this to was what when where which with why".split())
 NON_ARTICLE_TEXT = re.compile(
-    r"cookie|privacy|consent|subscribe|sign in|log in|register|advertisement|"
-    r"sponsored|terms (?:of use|and conditions)|disclaimer|all rights reserved|"
-    r"accept (?:all )?cookies|manage (?:your )?preferences|privacy dashboard|"
-    r"yahoo (?:is|uses)|yahoo family|our partners|personal data|legitimate interest|"
-    r"partners (?:use|store)|vendor list|consent framework",
+    r"\bcookie(?:s| settings)?\b|\bprivacy(?: policy| dashboard)?\b|\bconsent\b|"
+    r"\bsubscribe\b|\bsign[ -]?in\b|\blog[ -]?in\b|\bregister\b|"
+    r"\badvertisement\b|\bsponsored\b|\bterms (?:of use|and conditions)\b|"
+    r"\bdisclaimer\b|\ball rights reserved\b|\baccept (?:all )?cookies\b|"
+    r"\bmanage (?:your )?preferences\b|\bpersonal data\b|\blegitimate interest\b|"
+    r"\byour privacy choices\b|\bdo not sell (?:or share)?\b|\bopt[ -]?out\b|"
+    r"\bdata processing\b|\bdata (?:is|are) (?:used|shared|collected)\b|"
+    r"\b(?:our|third[ -]?party) partners\b|\bpartner(?:s)? (?:use|store|process|share)\b|"
+    r"\bvendor(?:s| list)?\b|\bconsent framework\b|\bmarketing purposes\b|"
+    r"\badvertising purposes\b|\bwe and our (?:partners|vendors)\b",
     re.IGNORECASE,
 )
 
@@ -117,11 +122,16 @@ class ArticleParser(HTMLParser):
         self._paragraph_in_article = False
         self._article_depth = 0
         self._ignored = 0
+        self._ignored_tags: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = {key.lower(): value or "" for key, value in attrs}
-        if tag in {"script", "style", "noscript", "svg"}:
+        element_text = " ".join(attributes.values())
+        non_article_container = tag in {"script", "style", "noscript", "svg", "nav", "footer", "aside", "dialog", "form"}
+        privacy_container = bool(NON_ARTICLE_TEXT.search(element_text))
+        if non_article_container or privacy_container:
             self._ignored += 1
+            self._ignored_tags.append(tag)
         if tag == "article" and not self._ignored:
             self._article_depth += 1
         if tag == "meta" and attributes.get("name", "").lower() == "description":
@@ -133,8 +143,9 @@ class ArticleParser(HTMLParser):
             self._paragraph_in_article = self._article_depth > 0
 
     def handle_endtag(self, tag: str) -> None:
-        if tag in {"script", "style", "noscript", "svg"} and self._ignored:
+        if self._ignored_tags and tag == self._ignored_tags[-1]:
             self._ignored -= 1
+            self._ignored_tags.pop()
         if tag == "p" and self._in_paragraph:
             paragraph = clean(" ".join(self._buffer))
             if len(paragraph) > 40 and not NON_ARTICLE_TEXT.search(paragraph):
