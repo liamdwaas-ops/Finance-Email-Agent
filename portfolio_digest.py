@@ -97,7 +97,9 @@ STOP_WORDS = frozenset("a an and are as at be by for from how in is it its of on
 NON_ARTICLE_TEXT = re.compile(
     r"cookie|privacy|consent|subscribe|sign in|log in|register|advertisement|"
     r"sponsored|terms (?:of use|and conditions)|disclaimer|all rights reserved|"
-    r"accept (?:all )?cookies|manage (?:your )?preferences",
+    r"accept (?:all )?cookies|manage (?:your )?preferences|privacy dashboard|"
+    r"yahoo (?:is|uses)|yahoo family|our partners|personal data|legitimate interest|"
+    r"partners (?:use|store)|vendor list|consent framework",
     re.IGNORECASE,
 )
 
@@ -109,20 +111,26 @@ class ArticleParser(HTMLParser):
         super().__init__()
         self.description = ""
         self.paragraphs: list[str] = []
+        self.article_paragraphs: list[str] = []
         self._buffer: list[str] = []
         self._in_paragraph = False
+        self._paragraph_in_article = False
+        self._article_depth = 0
         self._ignored = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = {key.lower(): value or "" for key, value in attrs}
         if tag in {"script", "style", "noscript", "svg"}:
             self._ignored += 1
+        if tag == "article" and not self._ignored:
+            self._article_depth += 1
         if tag == "meta" and attributes.get("name", "").lower() == "description":
             self.description = self.description or attributes.get("content", "")
         if tag == "meta" and attributes.get("property", "").lower() in {"og:description", "twitter:description"}:
             self.description = self.description or attributes.get("content", "")
         if tag == "p" and not self._ignored:
             self._in_paragraph, self._buffer = True, []
+            self._paragraph_in_article = self._article_depth > 0
 
     def handle_endtag(self, tag: str) -> None:
         if tag in {"script", "style", "noscript", "svg"} and self._ignored:
@@ -131,7 +139,12 @@ class ArticleParser(HTMLParser):
             paragraph = clean(" ".join(self._buffer))
             if len(paragraph) > 40 and not NON_ARTICLE_TEXT.search(paragraph):
                 self.paragraphs.append(paragraph)
+                if self._paragraph_in_article:
+                    self.article_paragraphs.append(paragraph)
             self._in_paragraph = False
+            self._paragraph_in_article = False
+        if tag == "article" and self._article_depth:
+            self._article_depth -= 1
 
     def handle_data(self, data: str) -> None:
         if self._in_paragraph and not self._ignored:
@@ -221,9 +234,13 @@ def enrich(story: dict[str, str]) -> dict[str, str] | None:
         return None
     parser = ArticleParser()
     parser.feed(page)
-    # Lead paragraphs carry the actual event, figures and implications; page metadata is
-    # retained only as a fallback for sources that do not expose article text.
-    summary = article_summary(" ".join(parser.paragraphs[:6])) or article_summary(parser.description)
+    # Lead paragraphs carry the actual event, figures and implications. Yahoo pages
+    # frequently put privacy/consent copy before their article body, so only semantic
+    # <article> paragraphs are accepted from Yahoo; never its page metadata fallback.
+    body_paragraphs = parser.article_paragraphs or parser.paragraphs
+    summary = article_summary(" ".join(body_paragraphs[:6]))
+    if not summary and story["source"].lower() not in {"yahoo finance", "yahoo finance australia"}:
+        summary = article_summary(parser.description)
     if not summary:
         return None
     return {**story, "link": resolved_link, "summary": summary}

@@ -1,6 +1,6 @@
 # Daily portfolio news brief
 
-This agent gathers relevant, recent news for the portfolio, removes stories already sent, writes a concise email brief, and sends it at 7:00am Australia/Sydney time.
+This agent gathers relevant, recent news for the portfolio, removes stories already sent, writes a concise email brief, and sends it at 6:00am AEST each morning.
 
 In addition to the listed equities and ETFs, it tracks Hyperliquid, Aave, HyperLend, Bitcoin, Ethereum, Kinetiq, Tether/USDT, USD Coin/USDC, Ethena USDe, Ethena/ENA, and Rabby Wallet.
 
@@ -42,7 +42,7 @@ python portfolio_digest.py
 powershell -ExecutionPolicy Bypass -File .\install_task.ps1
 ```
 
-The installer attempts to run at 7:00am daily using the host's `Australia/Sydney` time zone setting, whether or not you are signed in. If Windows rejects passwordless background registration, open Task Scheduler, select **Daily Portfolio News Brief** > **Properties** > **General**, choose **Run whether user is logged on or not**, and enter your Windows account password directly in the Windows dialog. Windows must be awake at the scheduled time.
+The installer attempts to run at 6:00am daily using the host's `Australia/Sydney` time zone setting, whether or not you are signed in. If Windows rejects passwordless background registration, open Task Scheduler, select **Daily Portfolio News Brief** > **Properties** > **General**, choose **Run whether user is logged on or not**, and enter your Windows account password directly in the Windows dialog. Windows must be awake at the scheduled time.
 
 ## Sources and editorial rules
 
@@ -68,4 +68,4 @@ The local Windows task cannot run while the computer is powered off. This projec
 3. In **Settings > Actions > General**, set **Workflow permissions** to **Read and write permissions** so the workflow can persist `data/sent_stories.json` and prevent repeats.
 4. Run **Daily Portfolio News Brief** once from the Actions tab to validate it.
 
-The workflow runs at **07:00 AEST (21:00 UTC on the previous calendar day)**, including when the computer is off. GitHub schedules workflows on a best-effort basis, so busy periods may delay a run slightly.
+The workflow runs at **06:00 AEST (20:00 UTC on the previous calendar day)**, including when the computer is off. GitHub schedules workflows on a best-effort basis, so busy periods may delay a run slightly.

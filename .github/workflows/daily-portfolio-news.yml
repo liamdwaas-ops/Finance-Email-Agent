@@ -2,8 +2,8 @@ name: Daily Portfolio News Brief
 
 on:
   schedule:
-    # 07:00 AEST (UTC+10) on the following UTC date.
-    - cron: '0 21 * * *'
+    # 06:00 AEST (UTC+10) on the following UTC date.
+    - cron: '0 20 * * *'
   workflow_dispatch:
 
 permissions:
