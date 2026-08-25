@@ -50,6 +50,8 @@ The agent uses Google News RSS searches targeted at high-quality, freely accessi
 
 Items must be no more than three days old and match meaningful catalysts. Each shortlisted article is opened and its lead paragraphs are scanned; cookie banners, popups, subscription prompts, and disclaimers are discarded. The email provides a 1-2 sentence event-focused summary before the source link. Opinion/speculation such as “which stock is better?” and ordinary price-move pieces are excluded. A durable local history, plus title/content-similarity checks, prevents duplicate or syndicated versions of the same story appearing again.
 
+There is no numerical cap on stories in a brief: every item that passes these editorial, freshness, accessibility, and duplicate checks is eligible for inclusion.
+
 The brief also includes a **Notable price action** section only when BTC, ETH, USDT, USDC, USDe, VOO, NUKZ, or XLV crosses a material three-session move/depeg threshold. It is not a daily price ticker.
 
 The email also has a **Market and major-name developments** section for material economy-wide catalysts (Federal Reserve, Treasury, fiscal policy, tariffs, inflation and similar topics) and material news on large/trending US names. It remains selective rather than a complete market roundup.

@@ -29,9 +29,6 @@ ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 HISTORY_FILE = DATA_DIR / "sent_stories.json"
 LOOKBACK_DAYS = 2
-MAX_PER_HOLDING = 4
-MAX_MARKET_STORIES = 6
-MAX_CANDIDATES_PER_QUERY = 6
 
 
 @dataclass(frozen=True)
@@ -383,7 +380,7 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
         except Exception as error:  # one unavailable source should not prevent delivery
             print(f"Warning: could not retrieve {holding.name}: {error}", file=sys.stderr)
             continue
-        for story in candidates[:MAX_CANDIDATES_PER_QUERY]:
+        for story in candidates:
             key = fingerprint(story)
             if key in history or headline_key(story) in history or not relevant(holding, story):
                 continue
@@ -392,8 +389,6 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
                 continue
             selected.append(detailed)
             selected_all.append(detailed)
-            if len(selected) == MAX_PER_HOLDING:
-                break
         if selected:
             results[holding] = selected
     market: list[dict[str, str]] = []
@@ -403,17 +398,13 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
         except Exception as error:
             print(f"Warning: could not retrieve market news: {error}", file=sys.stderr)
             continue
-        for story in candidates[:MAX_CANDIDATES_PER_QUERY]:
+        for story in candidates:
             if fingerprint(story) in history or headline_key(story) in history or not market_relevant(story):
                 continue
             detailed = enrich(story)
             if not detailed or SPECULATION.search(detailed["title"] + " " + detailed["summary"]) or is_duplicate(detailed, selected_all + market):
                 continue
             market.append(detailed)
-            if len(market) == MAX_MARKET_STORIES:
-                break
-        if len(market) == MAX_MARKET_STORIES:
-            break
     return results, market, notable_price_action()
 
 
