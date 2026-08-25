@@ -11,7 +11,9 @@ import re
 import smtplib
 import ssl
 import sys
+import time
 import urllib.parse
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -27,9 +29,9 @@ ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 HISTORY_FILE = DATA_DIR / "sent_stories.json"
 LOOKBACK_DAYS = 2
-MAX_PER_HOLDING = 3
-MAX_MARKET_STORIES = 5
-MAX_CANDIDATES_PER_QUERY = 4
+MAX_PER_HOLDING = 4
+MAX_MARKET_STORIES = 6
+MAX_CANDIDATES_PER_QUERY = 6
 
 
 @dataclass(frozen=True)
@@ -49,7 +51,7 @@ HOLDINGS = (
     Holding("Seagate Technology (STX)", '"Seagate Technology" OR Seagate', ("seagate",)),
     Holding("SanDisk (SNDK)", 'SanDisk OR "Sandisk Corporation"', ("sandisk",)),
     Holding("Arm Holdings (ARM)", '"Arm Holdings" OR "Arm Ltd"', ("arm holdings", "arm ltd", "arm chip")),
-    Holding("NVIDIA (NVDA)", 'NVIDIA OR "Nvidia Corporation"', ("nvidia",)),
+    Holding("NVIDIA (NVDA; VOO top-five holding)", 'NVIDIA OR "Nvidia Corporation"', ("nvidia",)),
     Holding("Hyperliquid (HYPE)", 'Hyperliquid OR "HYPE token"', ("hyperliquid", "hype token")),
     Holding("Aave (AAVE)", 'Aave OR "AAVE protocol"', ("aave", "aave protocol")),
     Holding("HyperLend", 'HyperLend OR "Hyper Lend"', ("hyperlend", "hyper lend")),
@@ -61,9 +63,34 @@ HOLDINGS = (
     Holding("Ethena USDe", '"Ethena USDe" OR USDe', ("ethena usde", "usde")),
     Holding("Ethena (ENA)", 'Ethena OR "ENA token"', ("ethena", "ena token")),
     Holding("Rabby Wallet", '"Rabby Wallet" OR Rabby', ("rabby wallet", "rabby")),
-    Holding("NUKZ ETF", 'NUKZ ETF OR "Range Nuclear Renaissance Index"', ("nukz", "nuclear"), "nuclear-energy holdings and policy"),
-    Holding("Health Care Select Sector SPDR (XLV)", 'XLV ETF OR "Health Care Select Sector SPDR"', ("xlv", "health care select", "eli lilly", "unitedhealth", "johnson & johnson", "abbvie", "merck"), "major constituents, pharma, health policy"),
+    Holding("NUKZ ETF", 'NUKZ ETF OR "Range Nuclear Renaissance Index"', ("nukz", "range nuclear"), "nuclear-energy holdings and policy"),
+    Holding("Cameco (CCJ; NUKZ top-five holding)", 'Cameco OR CCJ', ("cameco", "ccj")),
+    Holding("GE Vernova (GEV; NUKZ top-five holding)", '"GE Vernova" OR GEV', ("ge vernova", "gev")),
+    Holding("Rolls-Royce (NUKZ top-five holding)", '"Rolls-Royce" AND nuclear', ("rolls-royce", "rolls royce")),
+    Holding("Endesa (NUKZ top-five holding)", 'Endesa AND nuclear', ("endesa",)),
+    Holding("CEZ (NUKZ top-five holding)", '"CEZ AS" OR "CEZ Group" AND nuclear', ("cez as", "cez group")),
+    Holding("Health Care Select Sector SPDR (XLV)", 'XLV ETF OR "Health Care Select Sector SPDR"', ("xlv", "health care select"), "sector and policy"),
+    Holding("Eli Lilly (LLY; XLV top-five holding)", '"Eli Lilly" OR LLY', ("eli lilly", "lilly")),
+    Holding("Johnson & Johnson (JNJ; XLV top-five holding)", '"Johnson & Johnson" OR JNJ', ("johnson & johnson", "johnson and johnson", "jnj")),
+    Holding("AbbVie (ABBV; XLV top-five holding)", 'AbbVie OR ABBV', ("abbvie", "abbv")),
+    Holding("UnitedHealth (UNH; XLV top-five holding)", 'UnitedHealth OR UNH', ("unitedhealth", "unh")),
+    Holding("Merck (MRK; XLV top-five holding)", '"Merck & Co" OR Merck OR MRK', ("merck", "mrk")),
     Holding("Vanguard S&P 500 ETF (VOO)", 'VOO ETF OR "S&P 500"', ("voo", "s&p 500", "federal reserve"), "index-wide macro and major constituents"),
+    Holding("Apple (AAPL; VOO top-five holding)", 'Apple OR AAPL', ("apple", "aapl")),
+    Holding("Microsoft (MSFT; VOO top-five holding)", 'Microsoft OR MSFT', ("microsoft", "msft")),
+    Holding("Amazon (AMZN; VOO top-five holding)", 'Amazon OR AMZN', ("amazon", "amzn")),
+    Holding("Alphabet (GOOGL; VOO top-five holding)", 'Alphabet OR Google OR GOOGL', ("alphabet", "google", "googl")),
+)
+
+PRICE_ASSETS = (
+    ("Bitcoin (BTC)", "BTC-USD", 0.05, False),
+    ("Ethereum (ETH)", "ETH-USD", 0.05, False),
+    ("Tether (USDT)", "USDT-USD", 0.003, True),
+    ("USD Coin (USDC)", "USDC-USD", 0.003, True),
+    ("Ethena USDe", "USDE-USD", 0.003, True),
+    ("Vanguard S&P 500 ETF (VOO)", "VOO", 0.025, False),
+    ("Range Nuclear Renaissance ETF (NUKZ)", "NUKZ", 0.04, False),
+    ("Health Care Select Sector SPDR (XLV)", "XLV", 0.025, False),
 )
 
 CATALYST = re.compile(
@@ -271,6 +298,35 @@ def is_duplicate(story: dict[str, str], selected: list[dict[str, str]]) -> bool:
     return False
 
 
+def notable_price_action() -> list[dict[str, str]]:
+    """Return only material three-session moves; stablecoins are measured against their peg."""
+    results: list[dict[str, str]] = []
+    for name, ticker, threshold, is_stablecoin in PRICE_ASSETS:
+        try:
+            encoded = urllib.parse.quote(ticker, safe="")
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?range=5d&interval=1d"
+            request = urllib.request.Request(url, headers={"User-Agent": "PortfolioNewsAgent/1.0"})
+            with urllib.request.urlopen(request, timeout=12) as response:
+                payload = json.loads(response.read())
+            closes = [value for value in payload["chart"]["result"][0]["indicators"]["quote"][0]["close"] if value is not None]
+            if len(closes) < 2:
+                continue
+            latest = closes[-1]
+            reference = 1.0 if is_stablecoin else closes[max(0, len(closes) - 4)]
+            move = (latest / reference - 1) if reference else 0
+            if abs(move) < threshold:
+                continue
+            basis = "from its $1 peg" if is_stablecoin else "over roughly three sessions"
+            results.append({
+                "name": name,
+                "summary": f"{name} is {move:+.1%} {basis} (latest observed price: ${latest:,.4f}).",
+                "link": f"https://finance.yahoo.com/quote/{urllib.parse.quote(ticker, safe='')}",
+            })
+        except (KeyError, IndexError, TypeError, ValueError, urllib.error.URLError):
+            continue
+    return results
+
+
 def story_markup(story: dict[str, str]) -> str:
     """Put the source URL on the first three summary words to keep the brief uncluttered."""
     words = story["summary"].split()
@@ -317,7 +373,7 @@ def market_relevant(story: dict[str, str]) -> bool:
     return is_recent(story) and story["source"].lower() in REPUTABLE_SOURCES and bool(CATALYST.search(title)) and not bool(PRICE_ONLY.search(title)) and not bool(ROUTINE_MOVE.search(title)) and not bool(SPECULATION.search(title))
 
 
-def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]], list[dict[str, str]]]:
+def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]], list[dict[str, str]], list[dict[str, str]]]:
     results: dict[Holding, list[dict[str, str]]] = {}
     selected_all: list[dict[str, str]] = []
     for holding in HOLDINGS:
@@ -358,17 +414,23 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
                 break
         if len(market) == MAX_MARKET_STORIES:
             break
-    return results, market
+    return results, market, notable_price_action()
 
 
-def render(grouped: dict[Holding, list[dict[str, str]]], market: list[dict[str, str]]) -> tuple[str, str]:
+def render(grouped: dict[Holding, list[dict[str, str]]], market: list[dict[str, str]], price_moves: list[dict[str, str]]) -> tuple[str, str]:
     now = datetime.now().astimezone()
     date = f"{now.day} {now.strftime('%B %Y')}"
     plain = [f"Portfolio news brief — {date}", ""]
     markup = [f"<h2>Portfolio news brief — {date}</h2>"]
-    if not grouped and not market:
+    if not grouped and not market and not price_moves:
         plain.append("No material, non-duplicative developments were identified in the last 48 hours.")
         markup.append("<p>No material, non-duplicative developments were identified in the last 48 hours.</p>")
+    if price_moves:
+        plain.append("Notable price action")
+        plain.extend(f"- {item['summary']}" for item in price_moves)
+        plain.append("")
+        items = "".join(f"<li><a href=\"{html.escape(item['link'], quote=True)}\">{html.escape(item['name'])}</a>: {html.escape(item['summary'].split(': ', 1)[-1])}</li>" for item in price_moves)
+        markup.append(f"<h3>Notable price action</h3><ul>{items}</ul>")
     if market:
         plain.append("Market and major-name developments")
         plain.extend(story_plain(s) for s in market)
@@ -410,8 +472,8 @@ def main() -> int:
     args = parser.parse_args()
     load_dotenv()
     history = load_history()
-    grouped, market = collect(history)
-    plain, markup = render(grouped, market)
+    grouped, market, price_moves = collect(history)
+    plain, markup = render(grouped, market, price_moves)
     if args.dry_run:
         print(plain)
         return 0

@@ -2,7 +2,7 @@
 
 This agent gathers relevant, recent news for the portfolio, removes stories already sent, writes a concise email brief, and sends it at 6:00am AEST each morning.
 
-In addition to the listed equities and ETFs, it tracks Hyperliquid, Aave, HyperLend, Bitcoin, Ethereum, Kinetiq, Tether/USDT, USD Coin/USDC, Ethena USDe, Ethena/ENA, and Rabby Wallet.
+In addition to the listed equities and ETFs, it tracks Hyperliquid, Aave, HyperLend, Bitcoin, Ethereum, Kinetiq, Tether/USDT, USD Coin/USDC, Ethena USDe, Ethena/ENA, and Rabby Wallet. It also tracks the current top-five constituents of VOO, XLV, and NUKZ; each constituent is clearly labelled with its parent ETF in the email.
 
 It intentionally excludes routine price moves. Material moves can be included when an article describes the reason (earnings, guidance, analyst action, regulation, a major product event, etc.).
 
@@ -49,6 +49,8 @@ The installer attempts to run at 6:00am daily using the host's `Australia/Sydney
 The agent uses Google News RSS searches targeted at high-quality, freely accessible finance and company sources (including Motley Fool Australia, Yahoo Finance, Reuters, CNBC, Associated Press, ABC News, CoinDesk, The Block, Decrypt, Blockworks, and DL News). It excludes publishers that require a login or normally put articles behind a paywall, including Bloomberg, FT, WSJ, and The Australian. It also queries broad web news for political, regulatory, industry, and macro developments directly relevant to each holding.
 
 Items must be no more than three days old and match meaningful catalysts. Each shortlisted article is opened and its lead paragraphs are scanned; cookie banners, popups, subscription prompts, and disclaimers are discarded. The email provides a 1-2 sentence event-focused summary before the source link. Opinion/speculation such as “which stock is better?” and ordinary price-move pieces are excluded. A durable local history, plus title/content-similarity checks, prevents duplicate or syndicated versions of the same story appearing again.
+
+The brief also includes a **Notable price action** section only when BTC, ETH, USDT, USDC, USDe, VOO, NUKZ, or XLV crosses a material three-session move/depeg threshold. It is not a daily price ticker.
 
 The email also has a **Market and major-name developments** section for material economy-wide catalysts (Federal Reserve, Treasury, fiscal policy, tariffs, inflation and similar topics) and material news on large/trending US names. It remains selective rather than a complete market roundup.
 
