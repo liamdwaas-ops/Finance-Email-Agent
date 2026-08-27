@@ -17,7 +17,7 @@ concurrency:
 jobs:
   send-digest:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - name: Check out the latest sent-story history
         uses: actions/checkout@v4

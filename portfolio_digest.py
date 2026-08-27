@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime
+from concurrent.futures import ThreadPoolExecutor
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -262,7 +263,7 @@ def enrich(story: dict[str, str]) -> dict[str, str] | None:
         if not resolved_link:
             return None
         request = urllib.request.Request(resolved_link, headers={"User-Agent": "Mozilla/5.0 (PortfolioNewsAgent/1.0)"})
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with urllib.request.urlopen(request, timeout=12) as response:
             page = response.read(1_500_000).decode("utf-8", errors="ignore")
             resolved_link = response.geturl()
     except Exception as error:
@@ -280,6 +281,15 @@ def enrich(story: dict[str, str]) -> dict[str, str] | None:
     if not summary:
         return None
     return {**story, "link": resolved_link, "summary": summary}
+
+
+def enrich_many(stories: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Open all independent source articles concurrently without limiting their count."""
+    if not stories:
+        return []
+    with ThreadPoolExecutor(max_workers=min(4, len(stories))) as executor:
+        futures = [executor.submit(enrich, story) for story in stories]
+        return [detailed for future in futures if (detailed := future.result()) is not None]
 
 
 def significant_tokens(text: str) -> set[str]:
@@ -371,21 +381,42 @@ def market_relevant(story: dict[str, str]) -> bool:
     return is_recent(story) and story["source"].lower() in REPUTABLE_SOURCES and bool(CATALYST.search(title)) and not bool(PRICE_ONLY.search(title)) and not bool(ROUTINE_MOVE.search(title)) and not bool(SPECULATION.search(title))
 
 
+def collect_holding(holding: Holding, history: dict[str, str]) -> tuple[Holding, list[dict[str, str]]]:
+    """Fetch one holding independently so all holdings can be processed in parallel."""
+    try:
+        candidates = fetch_rss(holding.query)
+    except Exception as error:
+        print(f"Warning: could not retrieve {holding.name}: {error}", file=sys.stderr)
+        return holding, []
+    shortlisted = [
+        story for story in candidates
+        if fingerprint(story) not in history and headline_key(story) not in history and relevant(holding, story)
+    ]
+    return holding, enrich_many(shortlisted)
+
+
+def collect_market(query: str, history: dict[str, str]) -> list[dict[str, str]]:
+    try:
+        candidates = fetch_rss(query)
+    except Exception as error:
+        print(f"Warning: could not retrieve market news: {error}", file=sys.stderr)
+        return []
+    shortlisted = [
+        story for story in candidates
+        if fingerprint(story) not in history and headline_key(story) not in history and market_relevant(story)
+    ]
+    return enrich_many(shortlisted)
+
+
 def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]], list[dict[str, str]], list[dict[str, str]]]:
     results: dict[Holding, list[dict[str, str]]] = {}
     selected_all: list[dict[str, str]] = []
-    for holding in HOLDINGS:
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = [executor.submit(collect_holding, holding, history) for holding in HOLDINGS]
+        holding_batches = [future.result() for future in futures]
+    for holding, detailed_stories in holding_batches:
         selected = []
-        try:
-            candidates = fetch_rss(holding.query)
-        except Exception as error:  # one unavailable source should not prevent delivery
-            print(f"Warning: could not retrieve {holding.name}: {error}", file=sys.stderr)
-            continue
-        for story in candidates:
-            key = fingerprint(story)
-            if key in history or headline_key(story) in history or not relevant(holding, story):
-                continue
-            detailed = enrich(story)
+        for detailed in detailed_stories:
             if not detailed or SPECULATION.search(detailed["title"] + " " + detailed["summary"]) or is_duplicate(detailed, selected_all):
                 continue
             selected.append(detailed)
@@ -393,16 +424,10 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
         if selected:
             results[holding] = selected
     market: list[dict[str, str]] = []
-    for query in MARKET_QUERIES:
-        try:
-            candidates = fetch_rss(query)
-        except Exception as error:
-            print(f"Warning: could not retrieve market news: {error}", file=sys.stderr)
-            continue
-        for story in candidates:
-            if fingerprint(story) in history or headline_key(story) in history or not market_relevant(story):
-                continue
-            detailed = enrich(story)
+    with ThreadPoolExecutor(max_workers=len(MARKET_QUERIES)) as executor:
+        market_batches = [future.result() for future in [executor.submit(collect_market, query, history) for query in MARKET_QUERIES]]
+    for detailed_stories in market_batches:
+        for detailed in detailed_stories:
             if not detailed or SPECULATION.search(detailed["title"] + " " + detailed["summary"]) or is_duplicate(detailed, selected_all + market):
                 continue
             market.append(detailed)
