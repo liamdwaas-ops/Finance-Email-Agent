@@ -2,12 +2,17 @@ name: Daily Portfolio News Brief
 
 on:
   schedule:
-    # 06:00 AEST (UTC+10) on the following UTC date.
-    - cron: '0 20 * * *'
+    # Primary 06:00 AEST trigger plus staggered fallbacks. The script records a
+    # daily AEST delivery marker, so fallback jobs never send a duplicate email.
+    - cron: '0,10,20,30 20 * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: daily-portfolio-news
+  cancel-in-progress: false
 
 jobs:
   send-digest:

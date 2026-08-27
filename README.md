@@ -72,4 +72,4 @@ The local Windows task cannot run while the computer is powered off. This projec
 3. In **Settings > Actions > General**, set **Workflow permissions** to **Read and write permissions** so the workflow can persist `data/sent_stories.json` and prevent repeats.
 4. Run **Daily Portfolio News Brief** once from the Actions tab to validate it.
 
-The workflow runs at **06:00 AEST (20:00 UTC on the previous calendar day)**, including when the computer is off. GitHub schedules workflows on a best-effort basis, so busy periods may delay a run slightly.
+The workflow's primary trigger is **06:00 AEST (20:00 UTC on the previous calendar day)**, including when the computer is off. It also has staggered 06:10, 06:20, and 06:30 AEST fallback triggers to compensate for occasional GitHub Actions scheduling delays. A persisted AEST-day delivery marker ensures these fallbacks cannot send duplicate emails.

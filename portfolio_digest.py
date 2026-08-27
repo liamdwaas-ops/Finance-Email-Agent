@@ -17,7 +17,7 @@ import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
@@ -28,6 +28,7 @@ from googlenewsdecoder import gnewsdecoder
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 HISTORY_FILE = DATA_DIR / "sent_stories.json"
+AEST = timezone(timedelta(hours=10), name="AEST")
 LOOKBACK_DAYS = 2
 
 
@@ -463,6 +464,10 @@ def main() -> int:
     args = parser.parse_args()
     load_dotenv()
     history = load_history()
+    delivery_key = f"delivery:{datetime.now(AEST).date().isoformat()}"
+    if not args.dry_run and delivery_key in history:
+        print("Today’s AEST digest has already been delivered; skipping fallback run.")
+        return 0
     grouped, market, price_moves = collect(history)
     plain, markup = render(grouped, market, price_moves)
     if args.dry_run:
@@ -470,6 +475,7 @@ def main() -> int:
         return 0
     send_email("Daily Portfolio News Brief", plain, markup)
     timestamp = datetime.now(UTC).isoformat()
+    history[delivery_key] = timestamp
     for stories in grouped.values():
         for story in stories:
             history[fingerprint(story)] = timestamp
