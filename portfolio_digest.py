@@ -151,6 +151,8 @@ MARKET_QUERIES = (
     '"S&P 500" OR "US stock market" OR Wall Street',
     'Nvidia OR Microsoft OR Apple OR Amazon OR Alphabet OR Tesla',
 )
+MAX_STORIES = 20
+MAX_MARKET_STORIES = 5
 STOP_WORDS = frozenset("a an and are as at be by for from how in is it its of on or that the this to was what when where which with why".split())
 NON_ARTICLE_TEXT = re.compile(
     r"\bcookie(?:s| settings)?\b|\bprivacy(?: policy| dashboard)?\b|\bconsent\b|"
@@ -530,11 +532,28 @@ def collect_market(query: str, history: dict[str, str]) -> list[dict[str, str]]:
 
 def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]], list[dict[str, str]], list[dict[str, str]]]:
     results: dict[Holding, list[dict[str, str]]] = {}
-    selected_all: list[dict[str, str]] = []
     with ThreadPoolExecutor(max_workers=6) as executor:
         futures = [executor.submit(collect_holding, holding, history) for holding in HOLDINGS]
         holding_batches = [future.result() for future in futures]
+    # Keep room for broad market catalysts, but never allow them to displace more
+    # than five of the twenty article slots.
+    market: list[dict[str, str]] = []
+    with ThreadPoolExecutor(max_workers=len(MARKET_QUERIES)) as executor:
+        market_batches = [future.result() for future in [executor.submit(collect_market, query, history) for query in MARKET_QUERIES]]
+    for detailed_stories in market_batches:
+        for detailed in detailed_stories:
+            content = detailed["title"] + " " + detailed["summary"] if detailed else ""
+            if not detailed or SPECULATION.search(content) or excluded_from_digest(content, source=detailed["source"]) or is_duplicate(detailed, market):
+                continue
+            market.append(detailed)
+            if len(market) >= MAX_MARKET_STORIES:
+                break
+        if len(market) >= MAX_MARKET_STORIES:
+            break
+    selected_all: list[dict[str, str]] = list(market)
     for holding, detailed_stories in holding_batches:
+        if len(selected_all) >= MAX_STORIES:
+            break
         selected = []
         for detailed in detailed_stories:
             content = detailed["title"] + " " + detailed["summary"] if detailed else ""
@@ -542,17 +561,10 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
                 continue
             selected.append(detailed)
             selected_all.append(detailed)
+            if len(selected_all) >= MAX_STORIES:
+                break
         if selected:
             results[holding] = selected
-    market: list[dict[str, str]] = []
-    with ThreadPoolExecutor(max_workers=len(MARKET_QUERIES)) as executor:
-        market_batches = [future.result() for future in [executor.submit(collect_market, query, history) for query in MARKET_QUERIES]]
-    for detailed_stories in market_batches:
-        for detailed in detailed_stories:
-            content = detailed["title"] + " " + detailed["summary"] if detailed else ""
-            if not detailed or SPECULATION.search(content) or excluded_from_digest(content, source=detailed["source"]) or is_duplicate(detailed, selected_all + market):
-                continue
-            market.append(detailed)
     return results, market, notable_price_action()
 
 
