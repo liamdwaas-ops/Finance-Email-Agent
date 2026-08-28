@@ -1,6 +1,6 @@
 import unittest
 
-from portfolio_digest import ArticleParser, article_summary
+from portfolio_digest import ArticleParser, Holding, TALK_SHOW_PROMOTION, article_summary, excluded_from_digest
 
 
 class ArticleContentFilterTests(unittest.TestCase):
@@ -23,6 +23,35 @@ class ArticleContentFilterTests(unittest.TestCase):
         )
         self.assertEqual(len(parser.article_paragraphs), 2)
         self.assertNotIn("cookies", " ".join(parser.paragraphs).lower())
+
+    def test_strips_timestamps_and_motley_fool_membership_copy(self):
+        text = (
+            "Thursday, 10:30 AM AEST. Join the Motley Fool membership for more free articles. "
+            "The company announced a binding agreement to build new data-centre capacity next year."
+        )
+        summary = article_summary(text, "The Motley Fool")
+        self.assertNotIn("thursday", summary.lower())
+        self.assertNotIn("membership", summary.lower())
+        self.assertIn("binding agreement", summary)
+
+    def test_the_block_survey_text_is_rejected(self):
+        text = (
+            "A survey of respondents found that investors expect a market recovery this year. "
+            "The protocol completed a new financing agreement that expands its available liquidity."
+        )
+        summary = article_summary(text, "The Block")
+        self.assertNotIn("survey", summary.lower())
+        self.assertIn("financing agreement", summary)
+
+    def test_rejects_tron_and_minor_bitcoin_development(self):
+        bitcoin = Holding("Bitcoin (BTC)", "Bitcoin", ("bitcoin", "btc"))
+        self.assertTrue(excluded_from_digest("Tron and TRX added a new integration."))
+        self.assertTrue(excluded_from_digest("Bitcoin developers released a new testnet client.", bitcoin))
+        self.assertFalse(excluded_from_digest("Bitcoin hard fork upgrade date was announced.", bitcoin))
+
+    def test_identifies_talk_show_guest_promotions(self):
+        self.assertTrue(TALK_SHOW_PROMOTION.search("Chief executive to appear as a guest on a talk show."))
+        self.assertTrue(TALK_SHOW_PROMOTION.search("Podcast guest appearance announced for the founder."))
 
 
 if __name__ == "__main__":

@@ -109,6 +109,37 @@ SPECULATION = re.compile(
     r"could .* (?:soar|explode|double)|why .* stock|worth buying|versus|\bvs\.?",
     re.IGNORECASE,
 )
+TALK_SHOW_PROMOTION = re.compile(
+    r"(?:to appear|appearing|guest appearance|joins? .* as a guest|will join|"
+    r"guest|appearance).*?(?:talk show|podcast|show|interview)|"
+    r"(?:talk show|podcast|show|interview).*?(?:guest|appearance)",
+    re.IGNORECASE,
+)
+TRON_RELATED = re.compile(r"\btron\b|\btrx\b|\bjustin sun\b", re.IGNORECASE)
+CHAIN_DEVELOPMENT = re.compile(
+    r"developer|development|devnet|testnet|client|roadmap|foundation|research|"
+    r"eip[- ]?\d+|bip[- ]?\d+|core release|staking (?:update|change)",
+    re.IGNORECASE,
+)
+MAJOR_CHAIN_UPGRADE = re.compile(
+    r"(?:major |mainnet |network |protocol )?upgrade|hard fork|activation|"
+    r"fork (?:scheduled|date)|upgrade (?:announced|scheduled|launch)",
+    re.IGNORECASE,
+)
+LOW_INFORMATION_TEXT = re.compile(
+    r"^(?:mon|tues|wednes|thurs|fri|satur|sun)day(?:,?\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?(?:\s+[A-Z]{2,4})?)?[.,]?$|"
+    r"^(?:published|updated|last updated)\s*[:\-]? *(?:mon|tues|wednes|thurs|fri|satur|sun)day.*$|"
+    r"^\d{1,2}:\d{2}\s*(?:am|pm)(?:\s+[A-Z]{2,4})?[.,]?$",
+    re.IGNORECASE,
+)
+THE_BLOCK_SURVEY = re.compile(r"\bsurvey\b|\bpoll\b|\brespondents?\b|\bquestionnaire\b", re.IGNORECASE)
+LEADING_TIMESTAMP = re.compile(
+    r"^(?:(?:published|updated|last updated)\s*[:\-]?\s*)?"
+    r"(?:(?:mon|tues|wednes|thurs|fri|satur|sun)day(?:,?\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?(?:\s+[A-Z]{2,4})?)?|"
+    r"\d{1,2}:\d{2}\s*(?:am|pm)(?:\s+[A-Z]{2,4})?)"
+    r"\s*(?:[|:—–-]\s*)?",
+    re.IGNORECASE,
+)
 REPUTABLE_SOURCES = {
     "abc news", "associated press", "blockworks", "cnbc", "coindesk", "decrypt",
     "dl news", "reuters", "the block", "the motley fool", "the motley fool australia",
@@ -130,7 +161,11 @@ NON_ARTICLE_TEXT = re.compile(
     r"\bdata processing\b|\bdata (?:is|are) (?:used|shared|collected)\b|"
     r"\b(?:our|third[ -]?party) partners\b|\bpartner(?:s)? (?:use|store|process|share)\b|"
     r"\bvendor(?:s| list)?\b|\bconsent framework\b|\bmarketing purposes\b|"
-    r"\badvertising purposes\b|\bwe and our (?:partners|vendors)\b",
+    r"\badvertising purposes\b|\bwe and our (?:partners|vendors)\b|"
+    r"\bmotley fool (?:premium|membership|services|disclaimer|subscription)\b|"
+    r"\bfree (?:article|membership|trial)\b|\bjoin (?:the )?motley fool\b|"
+    r"\bmembership (?:sign[ -]?up|offer|benefit|service)\b|"
+    r"\bmotley fool(?:'s)? disclosure policy\b",
     re.IGNORECASE,
 )
 
@@ -174,7 +209,7 @@ class ArticleParser(HTMLParser):
             self._ignored_tags.pop()
         if tag == "p" and self._in_paragraph:
             paragraph = clean(" ".join(self._buffer))
-            if len(paragraph) > 40 and not NON_ARTICLE_TEXT.search(paragraph):
+            if len(paragraph) > 40 and not NON_ARTICLE_TEXT.search(paragraph) and not LOW_INFORMATION_TEXT.search(paragraph):
                 self.paragraphs.append(paragraph)
                 if self._paragraph_in_article:
                     self.article_paragraphs.append(paragraph)
@@ -242,12 +277,15 @@ def headline_key(story: dict[str, str]) -> str:
     return "headline:" + hashlib.sha256(normalized.encode()).hexdigest()
 
 
-def article_summary(text: str) -> str:
+def article_summary(text: str, source: str = "") -> str:
     text = clean(text).split("The post appeared first", 1)[0].strip()
     sentences = re.split(r"(?<=[.!?])\s+", text)
     chosen: list[str] = []
     for sentence in sentences:
-        if len(sentence) < 45 or NON_ARTICLE_TEXT.search(sentence):
+        sentence = LEADING_TIMESTAMP.sub("", sentence).strip()
+        if len(sentence) < 45 or NON_ARTICLE_TEXT.search(sentence) or LOW_INFORMATION_TEXT.search(sentence):
+            continue
+        if source.lower() == "the block" and THE_BLOCK_SURVEY.search(sentence):
             continue
         chosen.append(sentence)
         if len(chosen) == 2 or len(" ".join(chosen)) >= 420:
@@ -275,9 +313,9 @@ def enrich(story: dict[str, str]) -> dict[str, str] | None:
     # frequently put privacy/consent copy before their article body, so only semantic
     # <article> paragraphs are accepted from Yahoo; never its page metadata fallback.
     body_paragraphs = parser.article_paragraphs or parser.paragraphs
-    summary = article_summary(" ".join(body_paragraphs[:6]))
+    summary = article_summary(" ".join(body_paragraphs[:6]), story["source"])
     if not summary and story["source"].lower() not in {"yahoo finance", "yahoo finance australia"}:
-        summary = article_summary(parser.description)
+        summary = article_summary(parser.description, story["source"])
     if not summary:
         return None
     return {**story, "link": resolved_link, "summary": summary}
@@ -365,6 +403,18 @@ def save_history(history: dict[str, str]) -> None:
     HISTORY_FILE.write_text(json.dumps(retained, indent=2), encoding="utf-8")
 
 
+def excluded_from_digest(text: str, holding: Holding | None = None, source: str = "") -> bool:
+    """Apply editorial exclusions that are independent of an article's relevance."""
+    if TRON_RELATED.search(text):
+        return True
+    if source.lower() == "the block" and THE_BLOCK_SURVEY.search(text):
+        return True
+    is_btc_or_eth = (
+        holding is not None and holding.name.startswith(("Bitcoin (BTC)", "Ethereum (ETH)"))
+    ) or bool(re.search(r"\b(?:bitcoin|btc|ethereum|eth)\b", text, re.IGNORECASE))
+    return is_btc_or_eth and bool(CHAIN_DEVELOPMENT.search(text)) and not bool(MAJOR_CHAIN_UPGRADE.search(text))
+
+
 def relevant(holding: Holding, story: dict[str, str]) -> bool:
     title = story["title"]
     title_lower = title.lower()
@@ -373,12 +423,22 @@ def relevant(holding: Holding, story: dict[str, str]) -> bool:
         for alias in holding.aliases
     )
     reputable_source = story["source"].lower() in REPUTABLE_SOURCES
-    return is_recent(story) and reputable_source and mentions_holding and bool(CATALYST.search(title)) and not bool(PRICE_ONLY.search(title)) and not bool(ROUTINE_MOVE.search(title)) and not bool(SPECULATION.search(title))
+    return (
+        is_recent(story) and reputable_source and mentions_holding and bool(CATALYST.search(title))
+        and not bool(PRICE_ONLY.search(title)) and not bool(ROUTINE_MOVE.search(title))
+        and not bool(SPECULATION.search(title)) and not bool(TALK_SHOW_PROMOTION.search(title))
+        and not excluded_from_digest(title, holding, story["source"])
+    )
 
 
 def market_relevant(story: dict[str, str]) -> bool:
     title = story["title"]
-    return is_recent(story) and story["source"].lower() in REPUTABLE_SOURCES and bool(CATALYST.search(title)) and not bool(PRICE_ONLY.search(title)) and not bool(ROUTINE_MOVE.search(title)) and not bool(SPECULATION.search(title))
+    return (
+        is_recent(story) and story["source"].lower() in REPUTABLE_SOURCES and bool(CATALYST.search(title))
+        and not bool(PRICE_ONLY.search(title)) and not bool(ROUTINE_MOVE.search(title))
+        and not bool(SPECULATION.search(title)) and not bool(TALK_SHOW_PROMOTION.search(title))
+        and not excluded_from_digest(title, source=story["source"])
+    )
 
 
 def collect_holding(holding: Holding, history: dict[str, str]) -> tuple[Holding, list[dict[str, str]]]:
@@ -417,7 +477,8 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
     for holding, detailed_stories in holding_batches:
         selected = []
         for detailed in detailed_stories:
-            if not detailed or SPECULATION.search(detailed["title"] + " " + detailed["summary"]) or is_duplicate(detailed, selected_all):
+            content = detailed["title"] + " " + detailed["summary"] if detailed else ""
+            if not detailed or SPECULATION.search(content) or excluded_from_digest(content, holding, detailed["source"]) or is_duplicate(detailed, selected_all):
                 continue
             selected.append(detailed)
             selected_all.append(detailed)
@@ -428,7 +489,8 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
         market_batches = [future.result() for future in [executor.submit(collect_market, query, history) for query in MARKET_QUERIES]]
     for detailed_stories in market_batches:
         for detailed in detailed_stories:
-            if not detailed or SPECULATION.search(detailed["title"] + " " + detailed["summary"]) or is_duplicate(detailed, selected_all + market):
+            content = detailed["title"] + " " + detailed["summary"] if detailed else ""
+            if not detailed or SPECULATION.search(content) or excluded_from_digest(content, source=detailed["source"]) or is_duplicate(detailed, selected_all + market):
                 continue
             market.append(detailed)
     return results, market, notable_price_action()
