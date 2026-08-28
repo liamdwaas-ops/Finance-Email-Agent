@@ -153,6 +153,10 @@ MARKET_QUERIES = (
 )
 MAX_STORIES = 20
 MAX_MARKET_STORIES = 5
+MAX_STORIES_PER_HOLDING = {
+    "Bitcoin (BTC)": 2,
+    "Ethereum (ETH)": 2,
+}
 STOP_WORDS = frozenset("a an and are as at be by for from how in is it its of on or that the this to was what when where which with why".split())
 NON_ARTICLE_TEXT = re.compile(
     r"\bcookie(?:s| settings)?\b|\bprivacy(?: policy| dashboard)?\b|\bconsent\b|"
@@ -463,6 +467,10 @@ def excluded_from_digest(text: str, holding: Holding | None = None, source: str 
     return is_btc_or_eth and bool(CHAIN_DEVELOPMENT.search(text)) and not bool(MAJOR_CHAIN_UPGRADE.search(text))
 
 
+def holding_story_limit(holding: Holding) -> int | None:
+    return MAX_STORIES_PER_HOLDING.get(holding.name)
+
+
 def relevant(holding: Holding, story: dict[str, str]) -> bool:
     title = story["title"]
     title_lower = title.lower()
@@ -541,7 +549,10 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
         if len(selected_all) >= MAX_STORIES:
             break
         selected = []
+        holding_limit = holding_story_limit(holding)
         for detailed in detailed_stories:
+            if holding_limit is not None and len(selected) >= holding_limit:
+                break
             content = detailed["title"] + " " + detailed["summary"] if detailed else ""
             if not detailed or SPECULATION.search(content) or excluded_from_digest(content, holding, detailed["source"]) or is_duplicate(detailed, selected_all):
                 continue

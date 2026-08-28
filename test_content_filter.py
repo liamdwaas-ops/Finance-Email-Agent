@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from portfolio_digest import (
     ArticleParser, Holding, TALK_SHOW_PROMOTION, article_summary, excluded_from_digest,
-    load_pending_digest, save_pending_digest,
+    holding_story_limit, load_pending_digest, save_pending_digest,
 )
 
 
@@ -67,6 +67,11 @@ class ArticleContentFilterTests(unittest.TestCase):
                 self.assertEqual(load_pending_digest(), {"date": "2026-08-29", "plain": "prepared"})
                 pending.write_text("{invalid", encoding="utf-8")
                 self.assertIsNone(load_pending_digest())
+
+    def test_bitcoin_and_ethereum_each_have_a_two_story_limit(self):
+        self.assertEqual(holding_story_limit(Holding("Bitcoin (BTC)", "Bitcoin", ("bitcoin",))), 2)
+        self.assertEqual(holding_story_limit(Holding("Ethereum (ETH)", "Ethereum", ("ethereum",))), 2)
+        self.assertIsNone(holding_story_limit(Holding("Costco (COST)", "Costco", ("costco",))))
 
 
 if __name__ == "__main__":
