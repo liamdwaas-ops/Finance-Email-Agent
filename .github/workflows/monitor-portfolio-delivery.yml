@@ -1,0 +1,37 @@
+name: Monitor Portfolio News Delivery
+
+on:
+  schedule:
+    # 07:30 AEST, after the 06:00-06:55 delivery recovery window.
+    - cron: '30 21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify-delivery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify today's delivery marker
+        id: delivery
+        run: python portfolio_digest.py --check-delivery
+
+      - name: Create a diagnostic issue for a missed digest
+        if: failure() && steps.delivery.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Portfolio digest delivery missing — ${new Date().toISOString().slice(0, 10)}`,
+              body: `The 07:30 AEST delivery health check did not find today's persisted delivery marker. Review the failed or delayed Actions runs and the Gmail send step.\n\nRun: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });

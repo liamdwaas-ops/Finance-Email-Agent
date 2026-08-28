@@ -610,12 +610,19 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="Print the email without sending or updating history.")
     parser.add_argument("--prepare", action="store_true", help="Source and render today's digest without sending it.")
     parser.add_argument("--send-prepared", action="store_true", help="Send today's prepared digest, or source one as a fallback.")
+    parser.add_argument("--check-delivery", action="store_true", help="Exit non-zero when today's AEST delivery marker is absent.")
     args = parser.parse_args()
-    if sum((args.dry_run, args.prepare, args.send_prepared)) > 1:
-        parser.error("use only one of --dry-run, --prepare, or --send-prepared")
+    if sum((args.dry_run, args.prepare, args.send_prepared, args.check_delivery)) > 1:
+        parser.error("use only one of --dry-run, --prepare, --send-prepared, or --check-delivery")
     load_dotenv()
     history = load_history()
     delivery_key = f"delivery:{datetime.now(AEST).date().isoformat()}"
+    if args.check_delivery:
+        if delivery_key in history:
+            print("Today's AEST digest delivery marker is present.")
+            return 0
+        print("Today's AEST digest delivery marker is missing.", file=sys.stderr)
+        return 1
     if not args.dry_run and delivery_key in history:
         print("Today’s AEST digest has already been delivered; skipping fallback run.")
         return 0
