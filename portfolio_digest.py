@@ -424,22 +424,8 @@ def save_pending_digest(payload: dict[str, object]) -> None:
 
 def prepared_digest(history: dict[str, str]) -> dict[str, object]:
     """Source and render a digest now, leaving delivery for the 6am job."""
-    pending = load_pending_digest()
-    if args.prepare:
-        if pending and pending.get("date") == datetime.now(AEST).date().isoformat():
-            print("Today's AEST digest has already been prepared; skipping duplicate source run.")
-            return 0
-        payload = prepared_digest(history)
-        save_pending_digest(payload)
-        print(f"Prepared {payload['story_count']} story/stories for today's AEST delivery.")
-        return 0
-    if args.send_prepared and pending and pending.get("date") == datetime.now(AEST).date().isoformat():
-        payload = pending
-        print("Using the prepared AEST digest.")
-    else:
-        payload = prepared_digest(history)
-        if args.send_prepared:
-            print("No current prepared digest was available; sourced a delivery fallback.")
+    grouped, market, price_moves = collect(history)
+    plain, markup = render(grouped, market, price_moves)
     story_keys: list[str] = []
     for stories in grouped.values():
         for story in stories:
@@ -623,9 +609,10 @@ def main() -> int:
     parser.add_argument("--prepare", action="store_true", help="Source and render today's digest without sending it.")
     parser.add_argument("--send-prepared", action="store_true", help="Send today's prepared digest, or source one as a fallback.")
     parser.add_argument("--check-delivery", action="store_true", help="Exit non-zero when today's AEST delivery marker is absent.")
+    parser.add_argument("--resend-today", action="store_true", help="Manually source and resend today's brief without changing delivery history.")
     args = parser.parse_args()
-    if sum((args.dry_run, args.prepare, args.send_prepared, args.check_delivery)) > 1:
-        parser.error("use only one of --dry-run, --prepare, --send-prepared, or --check-delivery")
+    if sum((args.dry_run, args.prepare, args.send_prepared, args.check_delivery, args.resend_today)) > 1:
+        parser.error("use only one delivery mode at a time")
     load_dotenv()
     history = load_history()
     delivery_key = f"delivery:{datetime.now(AEST).date().isoformat()}"
@@ -635,11 +622,33 @@ def main() -> int:
             return 0
         print("Today's AEST digest delivery marker is missing.", file=sys.stderr)
         return 1
+    if args.resend_today:
+        # A requested resend must not clear or replace the normal daily marker.
+        # It deliberately bypasses story history so the recipient receives a full
+        # current brief rather than an empty post-delivery update.
+        payload = prepared_digest({})
+        send_email("Daily Portfolio News Brief", str(payload["plain"]), str(payload["markup"]))
+        print(f"Resent {payload['story_count']} story/stories without changing delivery history.")
+        return 0
     if not args.dry_run and delivery_key in history:
         print("Today’s AEST digest has already been delivered; skipping fallback run.")
         return 0
-    grouped, market, price_moves = collect(history)
-    plain, markup = render(grouped, market, price_moves)
+    pending = load_pending_digest()
+    if args.prepare:
+        if pending and pending.get("date") == datetime.now(AEST).date().isoformat():
+            print("Today's AEST digest has already been prepared; skipping duplicate source run.")
+            return 0
+        payload = prepared_digest(history)
+        save_pending_digest(payload)
+        print(f"Prepared {payload['story_count']} story/stories for today's AEST delivery.")
+        return 0
+    if args.send_prepared and pending and pending.get("date") == datetime.now(AEST).date().isoformat():
+        payload = pending
+        print("Using the prepared AEST digest.")
+    else:
+        payload = prepared_digest(history)
+        if args.send_prepared:
+            print("No current prepared digest was available; sourced a delivery fallback.")
     if args.dry_run:
         print(payload["plain"])
         return 0
