@@ -2,9 +2,9 @@ name: Daily Portfolio News Brief
 
 on:
   schedule:
-    # 06:00 AEST primary plus five-minute recovery attempts through 06:55.
+    # 06:00 AEST primary plus staggered recovery attempts through 06:30.
     # The script's delivery marker makes every later invocation a no-op once sent.
-    - cron: '0,5,10,15,20,25,30,35,40,45,50,55 20 * * *'
+    - cron: '0,10,20,30 20 * * *'
   workflow_dispatch:
 
 permissions:

@@ -2,8 +2,8 @@ name: Monitor Portfolio News Delivery
 
 on:
   schedule:
-    # 07:30 AEST, after the 06:00-06:55 delivery recovery window.
-    - cron: '30 21 * * *'
+    # 06:35 AEST, immediately after the final 06:30 delivery recovery attempt.
+    - cron: '35 20 * * *'
   workflow_dispatch:
 
 permissions:
@@ -33,5 +33,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `Portfolio digest delivery missing — ${new Date().toISOString().slice(0, 10)}`,
-              body: `The 07:30 AEST delivery health check did not find today's persisted delivery marker. Review the failed or delayed Actions runs and the Gmail send step.\n\nRun: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+              body: `The 06:35 AEST delivery health check did not find today's persisted delivery marker. Review the failed or delayed Actions runs and the Gmail send step.\n\nRun: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             });

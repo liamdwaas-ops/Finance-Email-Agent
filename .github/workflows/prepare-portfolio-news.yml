@@ -2,9 +2,9 @@ name: Prepare Portfolio News Brief
 
 on:
   schedule:
-    # Start sourcing at 05:05 AEST and retry preparation during the hour. Avoid
-    # GitHub's busiest top-of-hour queue; only the first successful run works.
-    - cron: '5,15,25,35,45,55 19 * * *'
+    # Stagger sourcing from 05:00 to 05:30 AEST. Only the first successful run
+    # performs work; later runs provide recovery without extending past 06:30.
+    - cron: '0,10,20,30 19 * * *'
   workflow_dispatch:
 
 permissions:

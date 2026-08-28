@@ -72,6 +72,6 @@ The local Windows task cannot run while the computer is powered off. This projec
 3. In **Settings > Actions > General**, set **Workflow permissions** to **Read and write permissions** so the workflow can persist `data/sent_stories.json` and prevent repeats.
 4. Run **Daily Portfolio News Brief** once from the Actions tab to validate it.
 
-The cloud agent prepares the brief from **05:05 AEST** and retries preparation during that hour. It then attempts delivery at **06:00 AEST** and every five minutes through 06:55 if GitHub Actions delays or drops an invocation. A persisted AEST-day delivery marker ensures these recovery attempts cannot send duplicate emails; if preparation was missed, a delivery run sources the brief itself before sending.
+The cloud agent prepares the brief at **05:00, 05:10, 05:20, and 05:30 AEST**. It then attempts delivery at **06:00, 06:10, 06:20, and 06:30 AEST**. A persisted AEST-day delivery marker ensures recovery attempts cannot send duplicate emails; if preparation was missed, a delivery run sources the brief itself before sending.
 
-At 07:30 AEST, a separate health-check workflow verifies that day's delivery marker. If it is missing, it opens a GitHub issue with a link to the diagnostic run so missed schedules and sender failures are not silent.
+At 06:35 AEST, a separate health-check workflow verifies that day's delivery marker. If it is missing, it opens a GitHub issue with a link to the diagnostic run so missed schedules and sender failures are not silent.
