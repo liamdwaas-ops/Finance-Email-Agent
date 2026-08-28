@@ -3,4 +3,5 @@
 .env - Copy.example
 data/*
 !data/sent_stories.json
+!data/prepared_digest.json
 __pycache__/

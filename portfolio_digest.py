@@ -29,6 +29,7 @@ from googlenewsdecoder import gnewsdecoder
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 HISTORY_FILE = DATA_DIR / "sent_stories.json"
+PENDING_DIGEST_FILE = DATA_DIR / "prepared_digest.json"
 AEST = timezone(timedelta(hours=10), name="AEST")
 LOOKBACK_DAYS = 2
 
@@ -403,6 +404,65 @@ def save_history(history: dict[str, str]) -> None:
     HISTORY_FILE.write_text(json.dumps(retained, indent=2), encoding="utf-8")
 
 
+def load_pending_digest() -> dict[str, object] | None:
+    """Return a prepared same-day email, if a prior source run completed."""
+    if not PENDING_DIGEST_FILE.exists():
+        return None
+    try:
+        payload = json.loads(PENDING_DIGEST_FILE.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def save_pending_digest(payload: dict[str, object]) -> None:
+    DATA_DIR.mkdir(exist_ok=True)
+    PENDING_DIGEST_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def prepared_digest(history: dict[str, str]) -> dict[str, object]:
+    """Source and render a digest now, leaving delivery for the 6am job."""
+    pending = load_pending_digest()
+    if args.prepare:
+        if pending and pending.get("date") == datetime.now(AEST).date().isoformat():
+            print("Today's AEST digest has already been prepared; skipping duplicate source run.")
+            return 0
+        payload = prepared_digest(history)
+        save_pending_digest(payload)
+        print(f"Prepared {payload['story_count']} story/stories for today's AEST delivery.")
+        return 0
+    if args.send_prepared and pending and pending.get("date") == datetime.now(AEST).date().isoformat():
+        payload = pending
+        print("Using the prepared AEST digest.")
+    else:
+        payload = prepared_digest(history)
+        if args.send_prepared:
+            print("No current prepared digest was available; sourced a delivery fallback.")
+    story_keys: list[str] = []
+    for stories in grouped.values():
+        for story in stories:
+            story_keys.extend((fingerprint(story), headline_key(story)))
+    for story in market:
+        story_keys.extend((fingerprint(story), headline_key(story)))
+    return {
+        "date": datetime.now(AEST).date().isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
+        "plain": plain,
+        "markup": markup,
+        "story_keys": story_keys,
+        "story_count": sum(map(len, grouped.values())) + len(market),
+    }
+
+
+def record_delivery(history: dict[str, str], payload: dict[str, object]) -> None:
+    timestamp = datetime.now(UTC).isoformat()
+    history[f"delivery:{datetime.now(AEST).date().isoformat()}"] = timestamp
+    for key in payload.get("story_keys", []):
+        if isinstance(key, str):
+            history[key] = timestamp
+    save_history(history)
+
+
 def excluded_from_digest(text: str, holding: Holding | None = None, source: str = "") -> bool:
     """Apply editorial exclusions that are independent of an article's relevance."""
     if TRON_RELATED.search(text):
@@ -548,7 +608,11 @@ def send_email(subject: str, plain: str, markup: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true", help="Print the email without sending or updating history.")
+    parser.add_argument("--prepare", action="store_true", help="Source and render today's digest without sending it.")
+    parser.add_argument("--send-prepared", action="store_true", help="Send today's prepared digest, or source one as a fallback.")
     args = parser.parse_args()
+    if sum((args.dry_run, args.prepare, args.send_prepared)) > 1:
+        parser.error("use only one of --dry-run, --prepare, or --send-prepared")
     load_dotenv()
     history = load_history()
     delivery_key = f"delivery:{datetime.now(AEST).date().isoformat()}"
@@ -558,20 +622,13 @@ def main() -> int:
     grouped, market, price_moves = collect(history)
     plain, markup = render(grouped, market, price_moves)
     if args.dry_run:
-        print(plain)
+        print(payload["plain"])
         return 0
-    send_email("Daily Portfolio News Brief", plain, markup)
-    timestamp = datetime.now(UTC).isoformat()
-    history[delivery_key] = timestamp
-    for stories in grouped.values():
-        for story in stories:
-            history[fingerprint(story)] = timestamp
-            history[headline_key(story)] = timestamp
-    for story in market:
-        history[fingerprint(story)] = timestamp
-        history[headline_key(story)] = timestamp
-    save_history(history)
-    print(f"Sent {sum(map(len, grouped.values()))} story/stories.")
+    send_email("Daily Portfolio News Brief", str(payload["plain"]), str(payload["markup"]))
+    record_delivery(history, payload)
+    if PENDING_DIGEST_FILE.exists():
+        PENDING_DIGEST_FILE.unlink()
+    print(f"Sent {payload['story_count']} story/stories.")
     return 0
 
 

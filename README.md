@@ -72,4 +72,4 @@ The local Windows task cannot run while the computer is powered off. This projec
 3. In **Settings > Actions > General**, set **Workflow permissions** to **Read and write permissions** so the workflow can persist `data/sent_stories.json` and prevent repeats.
 4. Run **Daily Portfolio News Brief** once from the Actions tab to validate it.
 
-The workflow's primary trigger is **06:00 AEST (20:00 UTC on the previous calendar day)**, including when the computer is off. It also has staggered 06:10, 06:20, and 06:30 AEST fallback triggers to compensate for occasional GitHub Actions scheduling delays. A persisted AEST-day delivery marker ensures these fallbacks cannot send duplicate emails.
+The cloud agent prepares the brief from **05:05 AEST** and retries preparation during that hour. It then attempts delivery at **06:00 AEST** and every five minutes through 06:55 if GitHub Actions delays or drops an invocation. A persisted AEST-day delivery marker ensures these recovery attempts cannot send duplicate emails; if preparation was missed, a delivery run sources the brief itself before sending.

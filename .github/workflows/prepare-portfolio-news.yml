@@ -1,0 +1,42 @@
+name: Prepare Portfolio News Brief
+
+on:
+  schedule:
+    # Start sourcing at 05:05 AEST and retry preparation during the hour. Avoid
+    # GitHub's busiest top-of-hour queue; only the first successful run works.
+    - cron: '5,15,25,35,45,55 19 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prepare-portfolio-news
+  cancel-in-progress: false
+
+jobs:
+  prepare-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out the latest digest state
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install --requirement requirements.txt
+
+      - name: Source and prepare today's brief
+        run: python portfolio_digest.py --prepare
+
+      - name: Save prepared digest
+        run: |
+          git config user.name "portfolio-news-bot"
+          git config user.email "portfolio-news-bot@users.noreply.github.com"
+          git add -A data/
+          git diff --cached --quiet || git commit -m "chore: prepare daily portfolio brief"
+          git push

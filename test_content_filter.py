@@ -1,6 +1,12 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
-from portfolio_digest import ArticleParser, Holding, TALK_SHOW_PROMOTION, article_summary, excluded_from_digest
+from portfolio_digest import (
+    ArticleParser, Holding, TALK_SHOW_PROMOTION, article_summary, excluded_from_digest,
+    load_pending_digest, save_pending_digest,
+)
 
 
 class ArticleContentFilterTests(unittest.TestCase):
@@ -52,6 +58,15 @@ class ArticleContentFilterTests(unittest.TestCase):
     def test_identifies_talk_show_guest_promotions(self):
         self.assertTrue(TALK_SHOW_PROMOTION.search("Chief executive to appear as a guest on a talk show."))
         self.assertTrue(TALK_SHOW_PROMOTION.search("Podcast guest appearance announced for the founder."))
+
+    def test_prepared_digest_round_trip_and_invalid_file(self):
+        with TemporaryDirectory() as directory:
+            pending = Path(directory) / "prepared_digest.json"
+            with patch("portfolio_digest.PENDING_DIGEST_FILE", pending):
+                save_pending_digest({"date": "2026-08-29", "plain": "prepared"})
+                self.assertEqual(load_pending_digest(), {"date": "2026-08-29", "plain": "prepared"})
+                pending.write_text("{invalid", encoding="utf-8")
+                self.assertIsNone(load_pending_digest())
 
 
 if __name__ == "__main__":
