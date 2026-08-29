@@ -10,7 +10,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: prepare-portfolio-news
+  # Shares the delivery lock. A delivery run cancels in-progress preparation;
+  # delayed preparation then sees the delivery marker and exits without sourcing.
+  group: portfolio-news-daily
   cancel-in-progress: false
 
 jobs:

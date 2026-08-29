@@ -11,8 +11,10 @@ permissions:
   contents: write
 
 concurrency:
-  group: daily-portfolio-news
-  cancel-in-progress: false
+  # Delivery takes priority: cancel any still-running article preparation once
+  # this job begins, then use the prepared brief or source its own fallback.
+  group: portfolio-news-daily
+  cancel-in-progress: true
 
 jobs:
   send-digest:

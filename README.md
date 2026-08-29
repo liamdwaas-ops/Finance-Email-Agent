@@ -74,4 +74,6 @@ The local Windows task cannot run while the computer is powered off. This projec
 
 The cloud agent prepares the brief once at **05:00 AEST**, then delivers it once at **06:00 AEST**. If preparation was missed, the single delivery run sources the brief itself before sending.
 
+Delivery has priority over preparation: when the 06:00 workflow starts, it cancels any still-running preparation job. Any delayed preparation job also exits without sourcing once that day's delivery marker exists.
+
 At 06:35 AEST, a separate health-check workflow verifies that day's delivery marker. If it is missing, it opens a GitHub issue with a link to the diagnostic run so missed schedules and sender failures are not silent.
