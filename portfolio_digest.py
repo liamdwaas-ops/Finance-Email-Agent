@@ -134,6 +134,12 @@ LOW_INFORMATION_TEXT = re.compile(
     re.IGNORECASE,
 )
 THE_BLOCK_SURVEY = re.compile(r"\bsurvey\b|\bpoll\b|\brespondents?\b|\bquestionnaire\b", re.IGNORECASE)
+DECRYPT_SIGNUP = re.compile(
+    r"\b(?:sign up|sign[- ]?up|subscribe)\b.*\b(?:decrypt|daily decrypt|newsletter|top stories)\b|"
+    r"\b(?:decrypt|daily decrypt)\b.*\b(?:newsletter|sign up|subscribe)\b|"
+    r"\bget (?:the )?(?:latest|top) (?:crypto )?(?:news|stories)\b",
+    re.IGNORECASE,
+)
 LEADING_TIMESTAMP = re.compile(
     r"^(?:(?:published|updated|last updated)\s*[:\-]?\s*)?"
     r"(?:(?:mon|tues|wednes|thurs|fri|satur|sun)day(?:,?\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?(?:\s+[A-Z]{2,4})?)?|"
@@ -293,6 +299,8 @@ def article_summary(text: str, source: str = "") -> str:
         if len(sentence) < 45 or NON_ARTICLE_TEXT.search(sentence) or LOW_INFORMATION_TEXT.search(sentence):
             continue
         if source.lower() == "the block" and THE_BLOCK_SURVEY.search(sentence):
+            continue
+        if source.lower() == "decrypt" and DECRYPT_SIGNUP.search(sentence):
             continue
         chosen.append(sentence)
         if len(chosen) == 2 or len(" ".join(chosen)) >= 420:

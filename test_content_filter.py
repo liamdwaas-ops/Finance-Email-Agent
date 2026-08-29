@@ -49,6 +49,15 @@ class ArticleContentFilterTests(unittest.TestCase):
         self.assertNotIn("survey", summary.lower())
         self.assertIn("financing agreement", summary)
 
+    def test_decrypt_signup_copy_is_rejected(self):
+        text = (
+            "Sign up for Decrypt's Daily Digest to get the latest crypto stories in your inbox. "
+            "The protocol completed a financing agreement that expands available liquidity for users."
+        )
+        summary = article_summary(text, "Decrypt")
+        self.assertNotIn("sign up", summary.lower())
+        self.assertIn("financing agreement", summary)
+
     def test_rejects_tron_and_minor_bitcoin_development(self):
         bitcoin = Holding("Bitcoin (BTC)", "Bitcoin", ("bitcoin", "btc"))
         self.assertTrue(excluded_from_digest("Tron and TRX added a new integration."))

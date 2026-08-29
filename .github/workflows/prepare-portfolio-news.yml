@@ -2,9 +2,8 @@ name: Prepare Portfolio News Brief
 
 on:
   schedule:
-    # Stagger sourcing from 05:00 to 05:30 AEST. Only the first successful run
-    # performs work; later runs provide recovery without extending past 06:30.
-    - cron: '0,10,20,30 19 * * *'
+    # One preparation run at 05:00 AEST, leaving an hour before delivery.
+    - cron: '0 19 * * *'
   workflow_dispatch:
 
 permissions:

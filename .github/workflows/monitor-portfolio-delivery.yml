@@ -20,6 +20,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install delivery-check dependency
+        run: python -m pip install --requirement requirements.txt
+
       - name: Verify today's delivery marker
         id: delivery
         run: python portfolio_digest.py --check-delivery

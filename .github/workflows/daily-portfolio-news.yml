@@ -2,9 +2,9 @@ name: Daily Portfolio News Brief
 
 on:
   schedule:
-    # 06:00 AEST primary plus staggered recovery attempts through 06:30.
-    # The script's delivery marker makes every later invocation a no-op once sent.
-    - cron: '0,10,20,30 20 * * *'
+    # One delivery attempt at 06:00 AEST. The preparation workflow has already
+    # sourced the brief, so this job only needs to send it.
+    - cron: '0 20 * * *'
   workflow_dispatch:
 
 permissions:
