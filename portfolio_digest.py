@@ -319,8 +319,9 @@ def enrich(story: dict[str, str]) -> dict[str, str] | None:
         with urllib.request.urlopen(request, timeout=12) as response:
             page = response.read(1_500_000).decode("utf-8", errors="ignore")
             resolved_link = response.geturl()
-    except Exception as error:
-        print(f"Warning: could not open article '{story['title']}': {error}", file=sys.stderr)
+    except Exception:
+        # Access failures (paywalls, rate limits, removed pages) are expected.
+        # Skip the item quietly rather than surfacing noisy local task output.
         return None
     parser = ArticleParser()
     parser.feed(page)
