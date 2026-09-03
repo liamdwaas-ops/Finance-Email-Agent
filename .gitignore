@@ -4,4 +4,5 @@
 data/*
 !data/sent_stories.json
 !data/prepared_digest.json
+!data/sent_podcast_episodes.json
 __pycache__/

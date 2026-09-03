@@ -1,0 +1,39 @@
+name: Daily Podcast Episode Digest
+
+on:
+  schedule:
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: podcast-digest-daily
+  cancel-in-progress: false
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --requirement requirements.txt
+      - name: Summarize and send new episodes
+        env:
+          PODCAST_GMAIL_USER: ${{ secrets.PODCAST_GMAIL_USER }}
+          PODCAST_GMAIL_APP_PASSWORD: ${{ secrets.PODCAST_GMAIL_APP_PASSWORD }}
+          PODCAST_RECIPIENT: ${{ secrets.PODCAST_RECIPIENT }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PODCAST_OPENAI_MODEL: ${{ vars.PODCAST_OPENAI_MODEL }}
+        run: python podcast_digest.py
+      - name: Save podcast history
+        run: |
+          git config user.name "podcast-digest-bot"
+          git config user.email "podcast-digest-bot@users.noreply.github.com"
+          git add data/sent_podcast_episodes.json
+          git diff --cached --quiet || git commit -m "chore: update podcast episode history"
+          git push

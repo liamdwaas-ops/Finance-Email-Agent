@@ -77,3 +77,32 @@ The cloud agent prepares the brief once at **05:00 AEST**, then delivers it once
 Delivery has priority over preparation: when the 06:40 workflow starts, it cancels any still-running preparation job. Any delayed preparation job also exits without sourcing once that day's delivery marker exists.
 
 At 07:10 AEST, a separate health-check workflow verifies that day's delivery marker. If it is missing, it opens a GitHub issue with a link to the diagnostic run so missed schedules and sender failures are not silent.
+
+## Separate podcast episode digest
+
+`podcast_digest.py` is an independent email agent for The All-In Podcast, Acquired, The Memo by Howard Marks, The Insight: Conversations by Oaktree, Founders, Cheeky Pint, and Invest Like The Best. It has its own recipient, Gmail credentials, OpenAI key, subject, and history file; it does not use the portfolio digest's delivery marker.
+
+Create the separate values in `.env`:
+
+```text
+PODCAST_GMAIL_USER=podcast-sender@gmail.com
+PODCAST_GMAIL_APP_PASSWORD=your-16-character-app-password
+PODCAST_RECIPIENT=podcast-recipient@example.com
+OPENAI_API_KEY=your-openai-api-key
+```
+
+Preview without sending:
+
+```powershell
+python podcast_digest.py --dry-run
+```
+
+The agent only summarizes episodes with usable transcript text. It groups the summary by topic, includes short verbatim quotations, and links books explicitly discussed to a Google Books search. Oaktree feed URLs may need to be supplied with the `PODCAST_FEED_THE_MEMO_BY_HOWARD_MARKS` and `PODCAST_FEED_THE_INSIGHT_CONVERSATIONS_BY_OAKTREE` variables when the site does not advertise an RSS feed.
+
+For local delivery, register the separate 7:00am task:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install_podcast_task.ps1
+```
+
+For cloud delivery, use `.github/workflows/daily-podcast-digest.yml` and add the five `PODCAST_*`/`OPENAI_API_KEY` secrets in the repository settings. Its `podcast-digest-daily` concurrency group and `data/sent_podcast_episodes.json` history are separate from the portfolio workflow.
