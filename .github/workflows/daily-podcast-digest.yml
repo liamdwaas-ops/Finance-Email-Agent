@@ -1,15 +1,17 @@
-name: Daily Podcast Episode Digest
+name: Podcast Episode Monitor
 
 on:
   schedule:
-    - cron: '0 21 * * *'
+    # GitHub Actions polls external podcast feeds; new episodes are normally
+    # detected within 15 minutes, subject to GitHub schedule delays.
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: podcast-digest-daily
+  group: podcast-digest-polling
   cancel-in-progress: false
 
 jobs:
@@ -26,7 +28,7 @@ jobs:
         env:
           PODCAST_GMAIL_USER: ${{ secrets.PODCAST_GMAIL_USER }}
           PODCAST_GMAIL_APP_PASSWORD: ${{ secrets.PODCAST_GMAIL_APP_PASSWORD }}
-          PODCAST_RECIPIENT: ${{ secrets.PODCAST_RECIPIENT }}
+          PODCAST_RECIPIENT: liamdewaas@gmail.com
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PODCAST_OPENAI_MODEL: ${{ vars.PODCAST_OPENAI_MODEL }}
         run: python podcast_digest.py
