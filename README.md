@@ -105,4 +105,4 @@ For local delivery, register the separate 7:00am task:
 powershell -ExecutionPolicy Bypass -File .\install_podcast_task.ps1
 ```
 
-For cloud delivery, use `.github/workflows/daily-podcast-digest.yml` and add the five `PODCAST_*`/`OPENAI_API_KEY` secrets in the repository settings. Its `podcast-digest-daily` concurrency group and `data/sent_podcast_episodes.json` history are separate from the portfolio workflow.
+For cloud delivery, use `.github/workflows/daily-podcast-digest.yml` and add these four repository secrets under **Settings > Secrets and variables > Actions**: `PODCAST_GMAIL_USER`, `PODCAST_GMAIL_APP_PASSWORD`, `PODCAST_RECIPIENT`, and `OPENAI_API_KEY`. Optionally add the `PODCAST_OPENAI_MODEL` repository variable and the two Oaktree feed variables as repository variables. Its `podcast-digest-daily` concurrency group and `data/sent_podcast_episodes.json` history are separate from the portfolio workflow.
