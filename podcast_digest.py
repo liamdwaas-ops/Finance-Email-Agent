@@ -324,7 +324,7 @@ def deliver_episodes(episodes: list[dict[str, object]], history: dict[str, str],
     sent = 0
     for episode in episodes:
         plain, markup = render([episode])
-        subject = f"{episode['podcast']}: {episode['title']}"
+        subject = str(episode["title"])
         if dry_run:
             print(plain)
             print("\n" + ("-" * 72) + "\n")

@@ -60,7 +60,7 @@ class PodcastDigestTests(unittest.TestCase):
         with patch("podcast_digest.send_email") as send, patch("podcast_digest.save_history") as save:
             self.assertEqual(deliver_episodes(episodes, history), 2)
         self.assertEqual(send.call_count, 2)
-        self.assertEqual(send.call_args_list[0].args[0], "Founders: One")
+        self.assertEqual(send.call_args_list[0].args[0], "One")
         self.assertIn(episode_key(episodes[0]), history)
         self.assertEqual(save.call_count, 2)
 
