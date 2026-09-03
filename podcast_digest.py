@@ -316,6 +316,26 @@ def collect(history: dict[str, str]) -> list[dict[str, object]]:
     return episodes
 
 
+def deliver_episodes(episodes: list[dict[str, object]], history: dict[str, str], dry_run: bool = False) -> int:
+    """Send one message per episode and persist each successful delivery immediately."""
+    if not episodes:
+        print("No new podcast episodes; no email sent.")
+        return 0
+    sent = 0
+    for episode in episodes:
+        plain, markup = render([episode])
+        subject = f"{episode['podcast']}: {episode['title']}"
+        if dry_run:
+            print(plain)
+            print("\n" + ("-" * 72) + "\n")
+            continue
+        send_email(subject, plain, markup)
+        history[episode_key(episode)] = datetime.now(UTC).isoformat()
+        save_history(history)
+        sent += 1
+    return sent
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true", help="Print the brief without sending or updating history.")
@@ -323,16 +343,11 @@ def main() -> int:
     load_dotenv()
     history = load_history()
     episodes = collect(history)
-    plain, markup = render(episodes)
     if args.dry_run:
-        print(plain)
+        deliver_episodes(episodes, history, dry_run=True)
         return 0
-    send_email(f"Podcast episode brief - {datetime.now():%d %B %Y}", plain, markup)
-    timestamp = datetime.now(UTC).isoformat()
-    for episode in episodes:
-        history[episode_key(episode)] = timestamp
-    save_history(history)
-    print(f"Sent {len(episodes)} episode summaries.")
+    sent = deliver_episodes(episodes, history)
+    print(f"Sent {sent} episode summaries.")
     return 0
 
 

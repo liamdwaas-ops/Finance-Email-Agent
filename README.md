@@ -98,7 +98,7 @@ Preview without sending:
 python podcast_digest.py --dry-run
 ```
 
-The agent only summarizes episodes with usable transcript text. It groups the summary by topic, includes short verbatim quotations, and links books explicitly discussed to a Google Books search. It does not require OpenAI: without `OPENAI_API_KEY`, it uses a local extractive summary. Oaktree feed URLs may need to be supplied with the `PODCAST_FEED_THE_MEMO_BY_HOWARD_MARKS` and `PODCAST_FEED_THE_INSIGHT_CONVERSATIONS_BY_OAKTREE` variables when the site does not advertise an RSS feed.
+The agent only summarizes episodes with usable transcript text. It sends one email per new episode and sends no email when no new episode is found. Each email groups the summary by topic, includes short verbatim quotations, and links books explicitly discussed to a Google Books search. It does not require OpenAI: without `OPENAI_API_KEY`, it uses a local extractive summary. Oaktree feed URLs may need to be supplied with the `PODCAST_FEED_THE_MEMO_BY_HOWARD_MARKS` and `PODCAST_FEED_THE_INSIGHT_CONVERSATIONS_BY_OAKTREE` variables when the site does not advertise an RSS feed.
 
 For local delivery, you can register the separate Windows task:
 

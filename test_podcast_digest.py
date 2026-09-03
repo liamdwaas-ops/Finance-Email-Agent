@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from podcast_digest import Podcast, book_url, parse_feed, render, summarize, transcript_from_html
+from podcast_digest import Podcast, book_url, deliver_episodes, episode_key, parse_feed, render, summarize, transcript_from_html
 
 
 class PodcastDigestTests(unittest.TestCase):
@@ -50,6 +50,24 @@ class PodcastDigestTests(unittest.TestCase):
         self.assertGreaterEqual(len(result["topics"]), 1)
         self.assertTrue(result["topics"][0]["quotes"])
         self.assertEqual(result["books"][0]["title"], "The Outsiders")
+
+    def test_delivery_sends_each_episode_separately(self):
+        episodes = [
+            {"podcast": "Founders", "title": "One", "link": "https://example.com/one", "summary": {"overview": "Summary one.", "topics": [], "books": []}},
+            {"podcast": "Acquired", "title": "Two", "link": "https://example.com/two", "summary": {"overview": "Summary two.", "topics": [], "books": []}},
+        ]
+        history = {}
+        with patch("podcast_digest.send_email") as send, patch("podcast_digest.save_history") as save:
+            self.assertEqual(deliver_episodes(episodes, history), 2)
+        self.assertEqual(send.call_count, 2)
+        self.assertEqual(send.call_args_list[0].args[0], "Founders: One")
+        self.assertIn(episode_key(episodes[0]), history)
+        self.assertEqual(save.call_count, 2)
+
+    def test_delivery_does_not_email_when_there_are_no_episodes(self):
+        with patch("podcast_digest.send_email") as send:
+            self.assertEqual(deliver_episodes([], {}), 0)
+        send.assert_not_called()
 
 
 if __name__ == "__main__":
