@@ -106,4 +106,4 @@ For local delivery, you can register the separate Windows task:
 powershell -ExecutionPolicy Bypass -File .\install_podcast_task.ps1
 ```
 
-For cloud delivery, use `.github/workflows/daily-podcast-digest.yml` and add these two repository secrets under **Settings > Secrets and variables > Actions**: `PODCAST_GMAIL_USER` and `PODCAST_GMAIL_APP_PASSWORD`. The recipient is fixed to `liamdewaas@gmail.com`. Optionally add `OPENAI_API_KEY`, `PODCAST_OPENAI_MODEL`, and the two Oaktree feed variables as repository variables. The workflow polls the feeds every four hours, then emails only episodes not already recorded in `data/sent_podcast_episodes.json`.
+For cloud delivery, use `.github/workflows/daily-podcast-digest.yml`. It reuses the existing repository secrets `PORTFOLIO_GMAIL_USER` and `PORTFOLIO_GMAIL_APP_PASSWORD` for Gmail authentication; no new Gmail secrets are required. The recipient is fixed to `liamdewaas@gmail.com`. Optionally add the two Oaktree feed variables as repository variables. The workflow polls the feeds every four hours, then emails only episodes not already recorded in `data/sent_podcast_episodes.json`.
