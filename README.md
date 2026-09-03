@@ -88,7 +88,8 @@ Create the separate values in `.env`:
 PODCAST_GMAIL_USER=podcast-sender@gmail.com
 PODCAST_GMAIL_APP_PASSWORD=your-16-character-app-password
 PODCAST_RECIPIENT=podcast-recipient@example.com
-OPENAI_API_KEY=your-openai-api-key
+# Optional only; without it the agent uses a local extractive summarizer.
+# OPENAI_API_KEY=your-openai-api-key
 ```
 
 Preview without sending:
@@ -97,7 +98,7 @@ Preview without sending:
 python podcast_digest.py --dry-run
 ```
 
-The agent only summarizes episodes with usable transcript text. It groups the summary by topic, includes short verbatim quotations, and links books explicitly discussed to a Google Books search. Oaktree feed URLs may need to be supplied with the `PODCAST_FEED_THE_MEMO_BY_HOWARD_MARKS` and `PODCAST_FEED_THE_INSIGHT_CONVERSATIONS_BY_OAKTREE` variables when the site does not advertise an RSS feed.
+The agent only summarizes episodes with usable transcript text. It groups the summary by topic, includes short verbatim quotations, and links books explicitly discussed to a Google Books search. It does not require OpenAI: without `OPENAI_API_KEY`, it uses a local extractive summary. Oaktree feed URLs may need to be supplied with the `PODCAST_FEED_THE_MEMO_BY_HOWARD_MARKS` and `PODCAST_FEED_THE_INSIGHT_CONVERSATIONS_BY_OAKTREE` variables when the site does not advertise an RSS feed.
 
 For local delivery, you can register the separate Windows task:
 
@@ -105,4 +106,4 @@ For local delivery, you can register the separate Windows task:
 powershell -ExecutionPolicy Bypass -File .\install_podcast_task.ps1
 ```
 
-For cloud delivery, use `.github/workflows/daily-podcast-digest.yml` and add these three repository secrets under **Settings > Secrets and variables > Actions**: `PODCAST_GMAIL_USER`, `PODCAST_GMAIL_APP_PASSWORD`, and `OPENAI_API_KEY`. The recipient is fixed to `liamdewaas@gmail.com`. Optionally add the `PODCAST_OPENAI_MODEL` repository variable and the two Oaktree feed variables as repository variables. The workflow polls the feeds every 15 minutes, then emails only episodes not already recorded in `data/sent_podcast_episodes.json`. GitHub may delay scheduled jobs briefly, so this is near-real-time rather than an exact upload webhook.
+For cloud delivery, use `.github/workflows/daily-podcast-digest.yml` and add these two repository secrets under **Settings > Secrets and variables > Actions**: `PODCAST_GMAIL_USER` and `PODCAST_GMAIL_APP_PASSWORD`. The recipient is fixed to `liamdewaas@gmail.com`. Optionally add `OPENAI_API_KEY`, `PODCAST_OPENAI_MODEL`, and the two Oaktree feed variables as repository variables. The workflow polls the feeds every four hours, then emails only episodes not already recorded in `data/sent_podcast_episodes.json`.

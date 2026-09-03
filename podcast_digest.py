@@ -20,7 +20,10 @@ from email.message import EmailMessage
 from html.parser import HTMLParser
 from pathlib import Path
 
-from openai import OpenAI
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
@@ -185,10 +188,40 @@ def save_history(history: dict[str, str]) -> None:
     HISTORY_FILE.write_text(json.dumps(retained, indent=2), encoding="utf-8")
 
 
+def local_summary(episode: dict[str, str], transcript: str) -> dict[str, object]:
+    """Create a useful no-API summary while retaining exact transcript language."""
+    blocks = [clean(block) for block in transcript.splitlines() if len(clean(block)) >= 45]
+    if not blocks:
+        blocks = [clean(transcript)]
+    topics: list[dict[str, object]] = []
+    for offset in range(0, len(blocks), 4):
+        section = blocks[offset:offset + 4]
+        sentences = [sentence.strip() for block in section for sentence in re.split(r"(?<=[.!?])\s+", block) if len(sentence.strip()) >= 45]
+        if not sentences:
+            continue
+        title = " ".join(sentences[0].split()[:9]).rstrip(".,:;")
+        topics.append({
+            "title": title,
+            "summary": " ".join(sentences[:6]),
+            "quotes": sentences[:2],
+        })
+    books: list[dict[str, str]] = []
+    book_pattern = re.compile(r"(?:book|read|reading|recommend(?:ed)?|author(?:ed)?)\s+(?:called\s+|titled\s+)?[\"“']?([A-Z][A-Za-z0-9&:' -]{2,80}?)[\"”']?\s+by\s+([A-Z][A-Za-z.' -]{2,60})", re.I)
+    seen_books: set[str] = set()
+    for title, author in book_pattern.findall(transcript):
+        title, author = clean(title).strip(" ,.;:!?"), clean(author).strip(" ,.;:!?")
+        key = f"{title.lower()}|{author.lower()}"
+        if key not in seen_books:
+            books.append({"title": title, "author": author, "why_it_matters": "Explicitly discussed in the episode."})
+            seen_books.add(key)
+    overview = " ".join(clean(block) for block in blocks[:4])
+    return {"overview": overview[:1800], "topics": topics, "books": books}
+
+
 def summarize(episode: dict[str, str], transcript: str) -> dict[str, object]:
     api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("Set OPENAI_API_KEY in .env or the environment to summarize episodes.")
+    if not api_key or OpenAI is None:
+        return local_summary(episode, transcript)
     response = OpenAI(api_key=api_key).responses.create(
         model=os.environ.get("PODCAST_OPENAI_MODEL", "gpt-5-mini"),
         input=[

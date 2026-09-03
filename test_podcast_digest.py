@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from podcast_digest import Podcast, book_url, parse_feed, render, transcript_from_html
+from podcast_digest import Podcast, book_url, parse_feed, render, summarize, transcript_from_html
 
 
 class PodcastDigestTests(unittest.TestCase):
@@ -37,6 +37,19 @@ class PodcastDigestTests(unittest.TestCase):
 
     def test_book_url_is_a_search_reference(self):
         self.assertIn("The+Memo", book_url("The Memo", "Howard Marks"))
+
+    def test_summary_works_without_openai_key(self):
+        transcript = "\n".join([
+            "The discussion covers durable businesses and how management allocates capital over long periods.",
+            "The guest explains why a strong balance sheet creates options during market downturns.",
+            "They also discuss the book The Outsiders by William Thorndike and its lessons for CEOs.",
+            "The final topic is valuation discipline and the danger of confusing a good company with a good investment.",
+        ])
+        with patch.dict("os.environ", {}, clear=True):
+            result = summarize({"podcast": "Test", "title": "Episode"}, transcript)
+        self.assertGreaterEqual(len(result["topics"]), 1)
+        self.assertTrue(result["topics"][0]["quotes"])
+        self.assertEqual(result["books"][0]["title"], "The Outsiders")
 
 
 if __name__ == "__main__":

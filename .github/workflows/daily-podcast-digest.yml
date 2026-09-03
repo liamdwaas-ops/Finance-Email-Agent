@@ -2,9 +2,8 @@ name: Podcast Episode Monitor
 
 on:
   schedule:
-    # GitHub Actions polls external podcast feeds; new episodes are normally
-    # detected within 15 minutes, subject to GitHub schedule delays.
-    - cron: '*/15 * * * *'
+    # GitHub Actions polls external podcast feeds every four hours.
+    - cron: '0 */4 * * *'
   workflow_dispatch:
 
 permissions:
@@ -29,8 +28,6 @@ jobs:
           PODCAST_GMAIL_USER: ${{ secrets.PODCAST_GMAIL_USER }}
           PODCAST_GMAIL_APP_PASSWORD: ${{ secrets.PODCAST_GMAIL_APP_PASSWORD }}
           PODCAST_RECIPIENT: liamdewaas@gmail.com
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          PODCAST_OPENAI_MODEL: ${{ vars.PODCAST_OPENAI_MODEL }}
         run: python podcast_digest.py
       - name: Save podcast history
         run: |
