@@ -82,6 +82,19 @@ HOLDINGS = (
     Holding("Alphabet (GOOGL; VOO top-five holding)", 'Alphabet OR Google OR GOOGL', ("alphabet", "google", "googl")),
 )
 
+PRIORITY_HOLDING_NAMES = frozenset({
+    "SharkNinja (SN)",
+    "Costco (COST)",
+    "Meta (META)",
+    "Cloudflare (NET)",
+    "Applied Digital (APLD)",
+    "Seagate Technology (STX)",
+    "SanDisk (SNDK)",
+    "Arm Holdings (ARM)",
+    "NVIDIA (NVDA; VOO top-five holding)",
+    "Hyperliquid (HYPE)",
+})
+
 PRICE_ASSETS = (
     ("Bitcoin (BTC)", "BTC-USD", 0.05, False),
     ("Ethereum (ETH)", "ETH-USD", 0.05, False),
@@ -480,6 +493,13 @@ def holding_story_limit(holding: Holding) -> int | None:
     return MAX_STORIES_PER_HOLDING.get(holding.name)
 
 
+def prioritised_holding_groups() -> tuple[tuple[Holding, ...], tuple[Holding, ...]]:
+    """Keep the portfolio's core positions ahead of the broader asset scan."""
+    priority = tuple(holding for holding in HOLDINGS if holding.name in PRIORITY_HOLDING_NAMES)
+    remaining = tuple(holding for holding in HOLDINGS if holding.name not in PRIORITY_HOLDING_NAMES)
+    return priority, remaining
+
+
 def relevant(holding: Holding, story: dict[str, str]) -> bool:
     title = story["title"]
     title_lower = title.lower()
@@ -535,9 +555,16 @@ def collect_market(query: str, history: dict[str, str]) -> list[dict[str, str]]:
 
 def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]], list[dict[str, str]], list[dict[str, str]]]:
     results: dict[Holding, list[dict[str, str]]] = {}
-    with ThreadPoolExecutor(max_workers=6) as executor:
-        futures = [executor.submit(collect_holding, holding, history) for holding in HOLDINGS]
-        holding_batches = [future.result() for future in futures]
+    priority_holdings, remaining_holdings = prioritised_holding_groups()
+    with ThreadPoolExecutor(max_workers=min(6, len(priority_holdings))) as executor:
+        priority_batches = [future.result() for future in [
+            executor.submit(collect_holding, holding, history) for holding in priority_holdings
+        ]]
+    with ThreadPoolExecutor(max_workers=min(6, len(remaining_holdings))) as executor:
+        remaining_batches = [future.result() for future in [
+            executor.submit(collect_holding, holding, history) for holding in remaining_holdings
+        ]]
+    holding_batches = priority_batches + remaining_batches
     # Keep room for broad market catalysts, but never allow them to displace more
     # than five of the twenty article slots.
     market: list[dict[str, str]] = []

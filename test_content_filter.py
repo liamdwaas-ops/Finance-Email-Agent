@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from portfolio_digest import (
     ArticleParser, Holding, TALK_SHOW_PROMOTION, article_summary, excluded_from_digest,
-    holding_story_limit, load_pending_digest, save_pending_digest,
+    holding_story_limit, load_pending_digest, prioritised_holding_groups, save_pending_digest,
 )
 
 
@@ -81,6 +81,14 @@ class ArticleContentFilterTests(unittest.TestCase):
         self.assertEqual(holding_story_limit(Holding("Bitcoin (BTC)", "Bitcoin", ("bitcoin",))), 2)
         self.assertEqual(holding_story_limit(Holding("Ethereum (ETH)", "Ethereum", ("ethereum",))), 2)
         self.assertIsNone(holding_story_limit(Holding("Costco (COST)", "Costco", ("costco",))))
+
+    def test_core_holdings_are_sourced_before_the_broader_portfolio(self):
+        priority, remaining = prioritised_holding_groups()
+        self.assertEqual(len(priority), 10)
+        self.assertEqual(priority[0].name, "SharkNinja (SN)")
+        self.assertEqual(priority[-1].name, "Hyperliquid (HYPE)")
+        self.assertNotIn("Bitcoin (BTC)", {holding.name for holding in priority})
+        self.assertIn("Bitcoin (BTC)", {holding.name for holding in remaining})
 
 
 if __name__ == "__main__":
