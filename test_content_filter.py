@@ -4,8 +4,8 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from portfolio_digest import (
-    ArticleParser, Holding, TALK_SHOW_PROMOTION, article_summary, excluded_from_digest,
-    holding_story_limit, load_pending_digest, prioritised_holding_groups, save_pending_digest,
+    ArticleParser, Holding, LinkParser, TALK_SHOW_PROMOTION, article_summary, excluded_from_digest,
+    holding_story_limit, is_recent, load_pending_digest, prioritised_holding_groups, save_pending_digest,
 )
 
 
@@ -89,6 +89,14 @@ class ArticleContentFilterTests(unittest.TestCase):
         self.assertEqual(priority[-1].name, "Hyperliquid (HYPE)")
         self.assertNotIn("Bitcoin (BTC)", {holding.name for holding in priority})
         self.assertIn("Bitcoin (BTC)", {holding.name for holding in remaining})
+
+    def test_first_party_links_and_metadata_dates_are_available_for_screening(self):
+        links = LinkParser("https://news.example.com/index")
+        links.feed('<a href="/release">Company announces a material product launch</a>')
+        self.assertEqual(links.links, [("Company announces a material product launch", "https://news.example.com/release")])
+        parser = ArticleParser()
+        parser.feed('<meta property="article:published_time" content="2026-09-11T09:30:00Z">')
+        self.assertTrue(is_recent({"published": parser.published}))
 
 
 if __name__ == "__main__":

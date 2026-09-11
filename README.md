@@ -50,6 +50,8 @@ The agent uses Google News RSS searches targeted at high-quality, freely accessi
 
 Items must be no more than three days old and match meaningful catalysts. The core positions—SharkNinja, Costco, Meta, Cloudflare, Applied Digital, Seagate, SanDisk, Arm, NVIDIA, and Hyperliquid—are sourced first; the broader portfolio is searched afterwards. Each shortlisted article is opened and its lead paragraphs are scanned; cookie banners, popups, subscription prompts, and disclaimers are discarded. The email provides a 1-2 sentence event-focused summary before the source link. Opinion/speculation such as “which stock is better?” and ordinary price-move pieces are excluded. A durable local history, plus title/content-similarity checks, prevents duplicate or syndicated versions of the same story appearing again.
 
+For Cloudflare, SanDisk, SharkNinja, Costco, Meta, Applied Digital, Seagate, Arm, and NVIDIA, the supplied official investor-relations/newsroom indexes are also queried directly. The agent follows their release links, reads the linked page, and includes only dated articles from the last three days.
+
 Each brief is capped at **20 articles**. Up to five slots are reserved for material market or major-name developments; the remaining slots are filled by the most relevant, non-duplicative portfolio stories. Bitcoin and Ethereum are each limited to two articles per brief.
 
 The brief also includes a **Notable price action** section only when BTC, ETH, USDT, USDC, USDe, VOO, NUKZ, or XLV crosses a material three-session move/depeg threshold. It is not a daily price ticker.

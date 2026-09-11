@@ -95,6 +95,48 @@ PRIORITY_HOLDING_NAMES = frozenset({
     "Hyperliquid (HYPE)",
 })
 
+# Official investor-relations and newsroom index pages supplied for the core
+# equity positions. Linked releases are opened and independently date-checked
+# before they can enter the brief.
+FIRST_PARTY_SOURCE_PAGES = {
+    "Cloudflare (NET)": (
+        "https://cloudflare.net/financials/quarterly-results/default.aspx",
+        "https://cloudflare.net/news/default.aspx",
+    ),
+    "SanDisk (SNDK)": (
+        "https://www.sandisk.com/company/newsroom",
+        "https://investor.sandisk.com/financial-information/annual-reports",
+    ),
+    "SharkNinja (SN)": (
+        "https://ir.sharkninja.com/news/default.aspx",
+        "https://ir.sharkninja.com/financials/quarterly-results/default.aspx",
+        "https://ir.sharkninja.com/financials/annual-reports/default.aspx",
+    ),
+    "Costco (COST)": (
+        "https://investor.costco.com/news/default.aspx",
+        "https://investor.costco.com/financials/annual-reports-and-proxy-statements/default.aspx",
+    ),
+    "Meta (META)": (
+        "https://investor.atmeta.com/investor-news/default.aspx",
+        "https://investor.atmeta.com/financials/default.aspx",
+    ),
+    "Applied Digital (APLD)": (
+        "https://ir.applieddigital.com/news-events/press-releases",
+    ),
+    "Seagate Technology (STX)": (
+        "https://investors.seagate.com/news/default.aspx",
+        "https://investors.seagate.com/financials/quarterly-results/default.aspx",
+    ),
+    "Arm Holdings (ARM)": (
+        "https://newsroom.arm.com/news?type=investor_news",
+        "https://investors.arm.com/financials/quarterly-annual-results",
+    ),
+    "NVIDIA (NVDA; VOO top-five holding)": (
+        "https://investor.nvidia.com/financial-info/financial-reports/default.aspx",
+        "https://nvidianews.nvidia.com/",
+    ),
+}
+
 PRICE_ASSETS = (
     ("Bitcoin (BTC)", "BTC-USD", 0.05, False),
     ("Ethereum (ETH)", "ETH-USD", 0.05, False),
@@ -172,6 +214,7 @@ MARKET_QUERIES = (
 )
 MAX_STORIES = 20
 MAX_MARKET_STORIES = 5
+MAX_FIRST_PARTY_CANDIDATES_PER_HOLDING = 12
 MAX_STORIES_PER_HOLDING = {
     "Bitcoin (BTC)": 2,
     "Ethereum (ETH)": 2,
@@ -202,6 +245,7 @@ class ArticleParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.description = ""
+        self.published = ""
         self.paragraphs: list[str] = []
         self.article_paragraphs: list[str] = []
         self._buffer: list[str] = []
@@ -225,6 +269,18 @@ class ArticleParser(HTMLParser):
             self.description = self.description or attributes.get("content", "")
         if tag == "meta" and attributes.get("property", "").lower() in {"og:description", "twitter:description"}:
             self.description = self.description or attributes.get("content", "")
+        meta_key = (
+            attributes.get("property", "").lower()
+            or attributes.get("name", "").lower()
+            or attributes.get("itemprop", "").lower()
+        )
+        if tag == "meta" and meta_key in {
+            "article:published_time", "og:published_time", "publishdate", "publish-date",
+            "date", "datepublished", "article:modified_time",
+        }:
+            self.published = self.published or attributes.get("content", "")
+        if tag == "time" and attributes.get("datetime"):
+            self.published = self.published or attributes["datetime"]
         if tag == "p" and not self._ignored:
             self._in_paragraph, self._buffer = True, []
             self._paragraph_in_article = self._article_depth > 0
@@ -247,6 +303,39 @@ class ArticleParser(HTMLParser):
     def handle_data(self, data: str) -> None:
         if self._in_paragraph and not self._ignored:
             self._buffer.append(data)
+
+
+class LinkParser(HTMLParser):
+    """Extracts human-readable article links from a first-party index page."""
+
+    def __init__(self, page_url: str) -> None:
+        super().__init__()
+        self.page_url = page_url
+        self.links: list[tuple[str, str]] = []
+        self._href = ""
+        self._text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "a" or self._href:
+            return
+        attributes = {key.lower(): value or "" for key, value in attrs}
+        href = attributes.get("href", "").strip()
+        if href:
+            self._href = urllib.parse.urljoin(self.page_url, href)
+            self._text = []
+
+    def handle_data(self, data: str) -> None:
+        if self._href:
+            self._text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag != "a" or not self._href:
+            return
+        title = clean(" ".join(self._text))
+        if title:
+            self.links.append((title, self._href))
+        self._href = ""
+        self._text = []
 
 
 def load_dotenv() -> None:
@@ -282,15 +371,108 @@ def fetch_rss(query: str) -> list[dict[str, str]]:
     return stories
 
 
+def parse_published_datetime(value: str) -> datetime | None:
+    """Accept common RSS, metadata and JSON-LD publication timestamp formats."""
+    if not value:
+        return None
+    try:
+        published = parsedate_to_datetime(value)
+    except (TypeError, ValueError, IndexError):
+        published = None
+    if published is None:
+        normalized = value.strip().replace("Z", "+00:00")
+        try:
+            published = datetime.fromisoformat(normalized)
+        except ValueError:
+            for date_format in ("%B %d, %Y", "%b %d, %Y", "%Y-%m-%d"):
+                try:
+                    published = datetime.strptime(value.strip(), date_format)
+                    break
+                except ValueError:
+                    continue
+            else:
+                return None
+    return published.replace(tzinfo=UTC) if published.tzinfo is None else published.astimezone(UTC)
+
+
 def is_recent(story: dict[str, str]) -> bool:
     """Enforce the three-day limit independently of the search provider's query filter."""
-    try:
-        published = parsedate_to_datetime(story["published"])
-        if published.tzinfo is None:
-            published = published.replace(tzinfo=UTC)
-        return published >= datetime.now(UTC) - timedelta(days=3)
-    except (TypeError, ValueError, IndexError):
-        return False
+    published = parse_published_datetime(story.get("published", ""))
+    return published is not None and published >= datetime.now(UTC) - timedelta(days=3)
+
+
+def first_party_source_name(holding: Holding) -> str:
+    return f"{holding.name.split(' (', 1)[0]} official news"
+
+
+def fetch_first_party(holding: Holding) -> list[dict[str, str]]:
+    """Discover recent-release candidates from the supplied official index pages."""
+    stories: list[dict[str, str]] = []
+    seen_links: set[str] = set()
+    for index_url in FIRST_PARTY_SOURCE_PAGES.get(holding.name, ()):
+        try:
+            request = urllib.request.Request(index_url, headers={"User-Agent": "Mozilla/5.0 (PortfolioNewsAgent/1.0)"})
+            with urllib.request.urlopen(request, timeout=20) as response:
+                page = response.read(1_500_000).decode("utf-8", errors="ignore")
+        except Exception:
+            continue
+        parser = LinkParser(index_url)
+        parser.feed(page)
+        index_host = urllib.parse.urlparse(index_url).netloc.lower()
+        organisation_domain = ".".join(index_host.split(".")[-2:])
+        for title, link in parser.links:
+            parsed = urllib.parse.urlparse(link)
+            normalized_link = link.split("#", 1)[0]
+            if (
+                parsed.scheme not in {"http", "https"} or normalized_link in seen_links
+                or not parsed.netloc.lower().endswith(organisation_domain) or normalized_link == index_url
+                or parsed.path.lower().endswith((".pdf", ".xlsx", ".zip"))
+                or len(title) < 25 or NON_ARTICLE_TEXT.search(title)
+            ):
+                continue
+            story = {
+                "title": title,
+                "link": normalized_link,
+                "published": "",
+                "source": first_party_source_name(holding),
+                "first_party": "true",
+                "direct_link": "true",
+                "first_party_domain": organisation_domain,
+            }
+            if not relevant(holding, story, require_recent=False):
+                continue
+            seen_links.add(normalized_link)
+            stories.append(story)
+            if len(stories) >= MAX_FIRST_PARTY_CANDIDATES_PER_HOLDING:
+                return stories
+    # Some investor-relations pages render releases only after JavaScript runs.
+    # Search their exact official host as a discovery fallback, then verify the
+    # decoded article URL still belongs to that organisation in enrich().
+    if stories:
+        return stories
+    for index_url in FIRST_PARTY_SOURCE_PAGES.get(holding.name, ()):
+        host = urllib.parse.urlparse(index_url).netloc.lower()
+        organisation_domain = ".".join(host.split(".")[-2:])
+        try:
+            discovered = fetch_rss(f"site:{host}")
+        except Exception:
+            continue
+        for story in discovered:
+            fallback = {
+                **story,
+                "source": first_party_source_name(holding),
+                "first_party": "true",
+                "first_party_domain": organisation_domain,
+            }
+            if not relevant(holding, fallback, require_recent=False):
+                continue
+            if fallback["link"] in seen_links:
+                continue
+            seen_links.add(fallback["link"])
+            stories.append(fallback)
+            if len(stories) >= MAX_FIRST_PARTY_CANDIDATES_PER_HOLDING:
+                return stories
+    return stories
 
 
 def fingerprint(story: dict[str, str]) -> str:
@@ -321,13 +503,23 @@ def article_summary(text: str, source: str = "") -> str:
     return " ".join(chosen)[:520].rstrip()
 
 
+def page_publication_date(parser: ArticleParser, page: str) -> str:
+    if parser.published:
+        return parser.published
+    match = re.search(r'"(?:datePublished|dateCreated)"\s*:\s*"([^"]+)"', page, re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
 def enrich(story: dict[str, str]) -> dict[str, str] | None:
     """Follow the news link and derive a factual brief from the article's visible content."""
     try:
-        decoded = gnewsdecoder(story["link"], interval=1)
-        resolved_link = decoded.get("decoded_url") if decoded.get("status") else None
-        if not resolved_link:
-            return None
+        if story.get("direct_link") == "true":
+            resolved_link = story["link"]
+        else:
+            decoded = gnewsdecoder(story["link"], interval=1)
+            resolved_link = decoded.get("decoded_url") if decoded.get("status") else None
+            if not resolved_link:
+                return None
         request = urllib.request.Request(resolved_link, headers={"User-Agent": "Mozilla/5.0 (PortfolioNewsAgent/1.0)"})
         with urllib.request.urlopen(request, timeout=12) as response:
             page = response.read(1_500_000).decode("utf-8", errors="ignore")
@@ -338,6 +530,15 @@ def enrich(story: dict[str, str]) -> dict[str, str] | None:
         return None
     parser = ArticleParser()
     parser.feed(page)
+    if story.get("first_party") == "true":
+        official_domain = story.get("first_party_domain", "")
+        if official_domain and not urllib.parse.urlparse(resolved_link).netloc.lower().endswith(official_domain):
+            return None
+        published = page_publication_date(parser, page)
+        dated_story = {**story, "published": published}
+        if not is_recent(dated_story):
+            return None
+        story = dated_story
     # Lead paragraphs carry the actual event, figures and implications. Yahoo pages
     # frequently put privacy/consent copy before their article body, so only semantic
     # <article> paragraphs are accepted from Yahoo; never its page metadata fallback.
@@ -500,16 +701,17 @@ def prioritised_holding_groups() -> tuple[tuple[Holding, ...], tuple[Holding, ..
     return priority, remaining
 
 
-def relevant(holding: Holding, story: dict[str, str]) -> bool:
+def relevant(holding: Holding, story: dict[str, str], require_recent: bool = True) -> bool:
     title = story["title"]
     title_lower = title.lower()
-    mentions_holding = any(
+    first_party = story.get("first_party") == "true"
+    mentions_holding = first_party or any(
         alias in title_lower if " " in alias else bool(re.search(rf"\b{re.escape(alias)}\b", title_lower))
         for alias in holding.aliases
     )
-    reputable_source = story["source"].lower() in REPUTABLE_SOURCES
+    reputable_source = first_party or story["source"].lower() in REPUTABLE_SOURCES
     return (
-        is_recent(story) and reputable_source and mentions_holding and bool(CATALYST.search(title))
+        (not require_recent or is_recent(story)) and reputable_source and mentions_holding and bool(CATALYST.search(title))
         and not bool(PRICE_ONLY.search(title)) and not bool(ROUTINE_MOVE.search(title))
         and not bool(SPECULATION.search(title)) and not bool(TALK_SHOW_PROMOTION.search(title))
         and not excluded_from_digest(title, holding, story["source"])
@@ -528,14 +730,16 @@ def market_relevant(story: dict[str, str]) -> bool:
 
 def collect_holding(holding: Holding, history: dict[str, str]) -> tuple[Holding, list[dict[str, str]]]:
     """Fetch one holding independently so all holdings can be processed in parallel."""
+    candidates: list[dict[str, str]] = []
     try:
-        candidates = fetch_rss(holding.query)
+        candidates.extend(fetch_rss(holding.query))
     except Exception as error:
         print(f"Warning: could not retrieve {holding.name}: {error}", file=sys.stderr)
-        return holding, []
+    candidates.extend(fetch_first_party(holding))
     shortlisted = [
         story for story in candidates
-        if fingerprint(story) not in history and headline_key(story) not in history and relevant(holding, story)
+        if fingerprint(story) not in history and headline_key(story) not in history
+        and relevant(holding, story, require_recent=story.get("first_party") != "true")
     ]
     return holding, enrich_many(shortlisted)
 
