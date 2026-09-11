@@ -2,8 +2,10 @@ name: Prepare Portfolio News Brief
 
 on:
   schedule:
-    # One preparation run at 05:00 AEST, leaving an hour before delivery.
-    - cron: '0 19 * * *'
+    # Refresh the prepared brief from 04:00 to 07:00 AEST. The delivery job
+    # uses the latest completed preparation at 07:10.
+    - cron: '0,20,40 18,19,20 * * *'
+    - cron: '0 21 * * *'
   workflow_dispatch:
 
 permissions:

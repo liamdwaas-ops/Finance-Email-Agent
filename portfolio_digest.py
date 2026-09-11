@@ -886,12 +886,15 @@ def main() -> int:
         return 0
     pending = load_pending_digest()
     if args.prepare:
-        if pending and pending.get("date") == datetime.now(AEST).date().isoformat():
-            print("Today's AEST digest has already been prepared; skipping duplicate source run.")
-            return 0
         payload = prepared_digest(history)
+        if (
+            pending and pending.get("date") == datetime.now(AEST).date().isoformat()
+            and payload["story_count"] == 0 and pending.get("story_count", 0) > 0
+        ):
+            print("Refresh found no usable stories; retaining the earlier prepared AEST digest.")
+            return 0
         save_pending_digest(payload)
-        print(f"Prepared {payload['story_count']} story/stories for today's AEST delivery.")
+        print(f"Refreshed {payload['story_count']} story/stories for today's AEST delivery.")
         return 0
     if args.send_prepared and pending and pending.get("date") == datetime.now(AEST).date().isoformat():
         payload = pending

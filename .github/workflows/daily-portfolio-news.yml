@@ -2,9 +2,9 @@ name: Daily Portfolio News Brief
 
 on:
   schedule:
-    # One delivery attempt at 06:40 AEST. The preparation workflow has already
+    # One delivery attempt at 07:10 AEST. The preparation workflow has already
     # sourced the brief, so this job only needs to send it.
-    - cron: '40 20 * * *'
+    - cron: '10 21 * * *'
   workflow_dispatch:
 
 permissions:
