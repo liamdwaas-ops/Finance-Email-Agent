@@ -40,6 +40,15 @@ class Holding:
     query: str
     aliases: tuple[str, ...]
     detail: str = ""
+    competitor_for: str = ""
+
+
+@dataclass(frozen=True)
+class Comparable:
+    """A listed peer whose material news provides context for a holding."""
+    name: str
+    query: str
+    aliases: tuple[str, ...]
 
 
 HOLDINGS = (
@@ -80,6 +89,162 @@ HOLDINGS = (
     Holding("Microsoft (MSFT; VOO top-five holding)", 'Microsoft OR MSFT', ("microsoft", "msft")),
     Holding("Amazon (AMZN; VOO top-five holding)", 'Amazon OR AMZN', ("amazon", "amzn")),
     Holding("Alphabet (GOOGL; VOO top-five holding)", 'Alphabet OR Google OR GOOGL', ("alphabet", "google", "googl")),
+)
+
+# Baseline public-company peer sets. They are intentionally scoped to holdings
+# that are listed equities (including the ETF constituents tracked separately).
+# Cryptoassets and ETFs do not have direct listed-stock competitors, so their
+# existing protocol, sector and broad-market coverage remains the relevant lens.
+COMPETITOR_BASELINES: dict[str, tuple[Comparable, ...]] = {
+    "SharkNinja (SN)": (
+        Comparable("Whirlpool (WHR)", '"Whirlpool"', ("whirlpool",)),
+        Comparable("Spectrum Brands (SPB)", '"Spectrum Brands"', ("spectrum brands",)),
+        Comparable("Helen of Troy (HELE)", '"Helen of Troy"', ("helen of troy",)),
+        Comparable("De'Longhi (DLG)", '"DeLonghi"', ("delonghi", "de'longhi")),
+    ),
+    "Costco (COST)": (
+        Comparable("Walmart (WMT)", '"Walmart"', ("walmart",)),
+        Comparable("BJ's Wholesale Club (BJ)", '"BJ\'s Wholesale"', ("bj's wholesale", "bjs wholesale")),
+        Comparable("Target (TGT)", '"Target"', ("target",)),
+        Comparable("Kroger (KR)", '"Kroger"', ("kroger",)),
+    ),
+    "Meta (META)": (
+        Comparable("Alphabet (GOOGL)", '"Alphabet" OR "Google"', ("alphabet", "google")),
+        Comparable("Snap (SNAP)", '"Snap Inc."', ("snap inc",)),
+        Comparable("Pinterest (PINS)", '"Pinterest"', ("pinterest",)),
+        Comparable("Reddit (RDDT)", '"Reddit"', ("reddit",)),
+    ),
+    "Cloudflare (NET)": (
+        Comparable("Akamai (AKAM)", '"Akamai"', ("akamai",)),
+        Comparable("Fastly (FSLY)", '"Fastly"', ("fastly",)),
+        Comparable("Zscaler (ZS)", '"Zscaler"', ("zscaler",)),
+        Comparable("Palo Alto Networks (PANW)", '"Palo Alto Networks"', ("palo alto networks",)),
+    ),
+    "Applied Digital (APLD)": (
+        Comparable("CoreWeave (CRWV)", '"CoreWeave"', ("coreweave",)),
+        Comparable("Core Scientific (CORZ)", '"Core Scientific"', ("core scientific",)),
+        Comparable("Nebius (NBIS)", '"Nebius"', ("nebius",)),
+        Comparable("Hut 8 (HUT)", '"Hut 8"', ("hut 8",)),
+    ),
+    "Seagate Technology (STX)": (
+        Comparable("Western Digital (WDC)", '"Western Digital"', ("western digital",)),
+        Comparable("Toshiba (6502)", '"Toshiba"', ("toshiba",)),
+        Comparable("NetApp (NTAP)", '"NetApp"', ("netapp",)),
+        Comparable("Pure Storage (PSTG)", '"Pure Storage"', ("pure storage",)),
+    ),
+    "SanDisk (SNDK)": (
+        Comparable("Micron (MU)", '"Micron"', ("micron",)),
+        Comparable("Western Digital (WDC)", '"Western Digital"', ("western digital",)),
+        Comparable("Kioxia (285A)", '"Kioxia"', ("kioxia",)),
+        Comparable("Samsung Electronics (005930)", '"Samsung Electronics"', ("samsung electronics",)),
+    ),
+    "Arm Holdings (ARM)": (
+        Comparable("Qualcomm (QCOM)", '"Qualcomm"', ("qualcomm",)),
+        Comparable("AMD (AMD)", '"AMD" OR "Advanced Micro Devices"', ("advanced micro devices", "amd")),
+        Comparable("Intel (INTC)", '"Intel"', ("intel",)),
+        Comparable("Synopsys (SNPS)", '"Synopsys"', ("synopsys",)),
+    ),
+    "NVIDIA (NVDA; VOO top-five holding)": (
+        Comparable("AMD (AMD)", '"AMD" OR "Advanced Micro Devices"', ("advanced micro devices", "amd")),
+        Comparable("Broadcom (AVGO)", '"Broadcom"', ("broadcom",)),
+        Comparable("Intel (INTC)", '"Intel"', ("intel",)),
+        Comparable("Marvell (MRVL)", '"Marvell Technology"', ("marvell", "marvell technology")),
+    ),
+    "Cameco (CCJ; NUKZ top-five holding)": (
+        Comparable("Kazatomprom (KAP)", '"Kazatomprom"', ("kazatomprom",)),
+        Comparable("Uranium Energy (UEC)", '"Uranium Energy"', ("uranium energy",)),
+        Comparable("Energy Fuels (UUUU)", '"Energy Fuels"', ("energy fuels",)),
+        Comparable("Denison Mines (DNN)", '"Denison Mines"', ("denison mines",)),
+    ),
+    "GE Vernova (GEV; NUKZ top-five holding)": (
+        Comparable("Siemens Energy (ENR)", '"Siemens Energy"', ("siemens energy",)),
+        Comparable("Mitsubishi Heavy Industries (7011)", '"Mitsubishi Heavy Industries"', ("mitsubishi heavy industries",)),
+        Comparable("Eaton (ETN)", '"Eaton"', ("eaton",)),
+        Comparable("Schneider Electric (SU)", '"Schneider Electric"', ("schneider electric",)),
+    ),
+    "Rolls-Royce (NUKZ top-five holding)": (
+        Comparable("GE Aerospace (GE)", '"GE Aerospace"', ("ge aerospace",)),
+        Comparable("RTX (RTX)", '"RTX" OR "RTX Corporation"', ("rtx corporation",)),
+        Comparable("Safran (SAF)", '"Safran"', ("safran",)),
+        Comparable("BAE Systems (BA)", '"BAE Systems"', ("bae systems",)),
+    ),
+    "Endesa (NUKZ top-five holding)": (
+        Comparable("Iberdrola (IBE)", '"Iberdrola"', ("iberdrola",)),
+        Comparable("Enel (ENEL)", '"Enel"', ("enel",)),
+        Comparable("E.ON (EOAN)", '"E.ON" OR "Eon SE"', ("e.on", "eon se")),
+        Comparable("RWE (RWE)", '"RWE"', ("rwe",)),
+    ),
+    "CEZ (NUKZ top-five holding)": (
+        Comparable("E.ON (EOAN)", '"E.ON" OR "Eon SE"', ("e.on", "eon se")),
+        Comparable("RWE (RWE)", '"RWE"', ("rwe",)),
+        Comparable("Fortum (FORTUM)", '"Fortum"', ("fortum",)),
+        Comparable("Enel (ENEL)", '"Enel"', ("enel",)),
+    ),
+    "Eli Lilly (LLY; XLV top-five holding)": (
+        Comparable("Novo Nordisk (NVO)", '"Novo Nordisk"', ("novo nordisk",)),
+        Comparable("Amgen (AMGN)", '"Amgen"', ("amgen",)),
+        Comparable("Pfizer (PFE)", '"Pfizer"', ("pfizer",)),
+        Comparable("Bristol Myers Squibb (BMY)", '"Bristol Myers Squibb"', ("bristol myers squibb",)),
+    ),
+    "Johnson & Johnson (JNJ; XLV top-five holding)": (
+        Comparable("AbbVie (ABBV)", '"AbbVie"', ("abbvie",)),
+        Comparable("Pfizer (PFE)", '"Pfizer"', ("pfizer",)),
+        Comparable("Merck (MRK)", '"Merck"', ("merck",)),
+        Comparable("Medtronic (MDT)", '"Medtronic"', ("medtronic",)),
+    ),
+    "AbbVie (ABBV; XLV top-five holding)": (
+        Comparable("Amgen (AMGN)", '"Amgen"', ("amgen",)),
+        Comparable("Gilead Sciences (GILD)", '"Gilead"', ("gilead",)),
+        Comparable("Bristol Myers Squibb (BMY)", '"Bristol Myers Squibb"', ("bristol myers squibb",)),
+        Comparable("Johnson & Johnson (JNJ)", '"Johnson & Johnson"', ("johnson & johnson",)),
+    ),
+    "UnitedHealth (UNH; XLV top-five holding)": (
+        Comparable("Elevance Health (ELV)", '"Elevance Health"', ("elevance health",)),
+        Comparable("CVS Health (CVS)", '"CVS Health"', ("cvs health",)),
+        Comparable("Cigna (CI)", '"Cigna"', ("cigna",)),
+        Comparable("Humana (HUM)", '"Humana"', ("humana",)),
+    ),
+    "Merck (MRK; XLV top-five holding)": (
+        Comparable("Pfizer (PFE)", '"Pfizer"', ("pfizer",)),
+        Comparable("Bristol Myers Squibb (BMY)", '"Bristol Myers Squibb"', ("bristol myers squibb",)),
+        Comparable("AstraZeneca (AZN)", '"AstraZeneca"', ("astrazeneca",)),
+        Comparable("Novartis (NVS)", '"Novartis"', ("novartis",)),
+    ),
+    "Apple (AAPL; VOO top-five holding)": (
+        Comparable("Samsung Electronics (005930)", '"Samsung Electronics"', ("samsung electronics",)),
+        Comparable("Dell (DELL)", '"Dell"', ("dell",)),
+        Comparable("HP (HPQ)", '"HP Inc."', ("hp inc",)),
+        Comparable("Sony (SONY)", '"Sony"', ("sony",)),
+    ),
+    "Microsoft (MSFT; VOO top-five holding)": (
+        Comparable("Alphabet (GOOGL)", '"Alphabet" OR "Google"', ("alphabet", "google")),
+        Comparable("Amazon (AMZN)", '"Amazon"', ("amazon",)),
+        Comparable("Oracle (ORCL)", '"Oracle"', ("oracle",)),
+        Comparable("Salesforce (CRM)", '"Salesforce"', ("salesforce",)),
+    ),
+    "Amazon (AMZN; VOO top-five holding)": (
+        Comparable("Walmart (WMT)", '"Walmart"', ("walmart",)),
+        Comparable("Alibaba (BABA)", '"Alibaba"', ("alibaba",)),
+        Comparable("Shopify (SHOP)", '"Shopify"', ("shopify",)),
+        Comparable("Target (TGT)", '"Target"', ("target",)),
+    ),
+    "Alphabet (GOOGL; VOO top-five holding)": (
+        Comparable("Meta (META)", '"Meta Platforms"', ("meta platforms",)),
+        Comparable("Microsoft (MSFT)", '"Microsoft"', ("microsoft",)),
+        Comparable("Amazon (AMZN)", '"Amazon"', ("amazon",)),
+        Comparable("Snap (SNAP)", '"Snap Inc."', ("snap inc",)),
+    ),
+}
+
+COMPETITOR_WATCHLIST = tuple(
+    Holding(
+        name=f"{holding_name} competitor watch",
+        query=" OR ".join(comparable.query for comparable in comparables),
+        aliases=tuple(alias for comparable in comparables for alias in comparable.aliases),
+        detail=", ".join(comparable.name for comparable in comparables),
+        competitor_for=holding_name,
+    )
+    for holding_name, comparables in COMPETITOR_BASELINES.items()
 )
 
 PRIORITY_HOLDING_NAMES = frozenset({
@@ -219,6 +384,9 @@ MARKET_QUERIES = (
 )
 MAX_STORIES = 20
 MAX_MARKET_STORIES = 5
+# Preserve room for material peer developments without letting them displace
+# the portfolio's own news. A second pass gives unused peer slots back.
+MAX_COMPETITOR_STORIES = 4
 MAX_FIRST_PARTY_CANDIDATES_PER_HOLDING = 12
 MAX_STORIES_PER_HOLDING = {
     "Bitcoin (BTC)": 2,
@@ -708,6 +876,17 @@ def prioritised_holding_groups() -> tuple[tuple[Holding, ...], tuple[Holding, ..
     return priority, remaining
 
 
+def prioritised_competitor_groups() -> tuple[tuple[Holding, ...], tuple[Holding, ...]]:
+    """Source peer sets for core equity holdings before the broader peer watchlist."""
+    priority = tuple(
+        holding for holding in COMPETITOR_WATCHLIST if holding.competitor_for in PRIORITY_HOLDING_NAMES
+    )
+    remaining = tuple(
+        holding for holding in COMPETITOR_WATCHLIST if holding.competitor_for not in PRIORITY_HOLDING_NAMES
+    )
+    return priority, remaining
+
+
 def relevant(holding: Holding, story: dict[str, str], require_recent: bool = True) -> bool:
     title = story["title"]
     title_lower = title.lower()
@@ -740,8 +919,10 @@ def collect_holding(holding: Holding, history: dict[str, str]) -> tuple[Holding,
     candidates: list[dict[str, str]] = []
     try:
         candidates.extend(fetch_rss(holding.query))
-    except Exception as error:
-        print(f"Warning: could not retrieve {holding.name}: {error}", file=sys.stderr)
+    except Exception:
+        # A feed can be rate-limited or temporarily unavailable. It is not a
+        # user-facing error; other sources and the next scheduled refresh retry it.
+        pass
     candidates.extend(fetch_first_party(holding))
     shortlisted = [
         story for story in candidates
@@ -754,14 +935,44 @@ def collect_holding(holding: Holding, history: dict[str, str]) -> tuple[Holding,
 def collect_market(query: str, history: dict[str, str]) -> list[dict[str, str]]:
     try:
         candidates = fetch_rss(query)
-    except Exception as error:
-        print(f"Warning: could not retrieve market news: {error}", file=sys.stderr)
+    except Exception:
         return []
     shortlisted = [
         story for story in candidates
         if fingerprint(story) not in history and headline_key(story) not in history and market_relevant(story)
     ]
     return enrich_many(shortlisted)
+
+
+def select_batches(
+    holding_batches: list[tuple[Holding, list[dict[str, str]]]],
+    results: dict[Holding, list[dict[str, str]]],
+    selected_all: list[dict[str, str]],
+    maximum_total: int,
+) -> None:
+    """Add relevant, non-duplicative stories while preserving each section's label."""
+    for holding, detailed_stories in holding_batches:
+        if len(selected_all) >= maximum_total:
+            return
+        selected = results.setdefault(holding, [])
+        holding_limit = holding_story_limit(holding)
+        for detailed in detailed_stories:
+            if holding_limit is not None and len(selected) >= holding_limit:
+                break
+            content = detailed["title"] + " " + detailed["summary"] if detailed else ""
+            if (
+                not detailed
+                or SPECULATION.search(content)
+                or excluded_from_digest(content, holding, detailed["source"])
+                or is_duplicate(detailed, selected_all)
+            ):
+                continue
+            selected.append(detailed)
+            selected_all.append(detailed)
+            if len(selected_all) >= maximum_total:
+                break
+        if not selected:
+            results.pop(holding, None)
 
 
 def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]], list[dict[str, str]], list[dict[str, str]]]:
@@ -776,6 +987,16 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
             executor.submit(collect_holding, holding, history) for holding in remaining_holdings
         ]]
     holding_batches = priority_batches + remaining_batches
+    priority_competitors, remaining_competitors = prioritised_competitor_groups()
+    with ThreadPoolExecutor(max_workers=min(6, len(priority_competitors))) as executor:
+        priority_competitor_batches = [future.result() for future in [
+            executor.submit(collect_holding, holding, history) for holding in priority_competitors
+        ]]
+    with ThreadPoolExecutor(max_workers=min(6, len(remaining_competitors))) as executor:
+        remaining_competitor_batches = [future.result() for future in [
+            executor.submit(collect_holding, holding, history) for holding in remaining_competitors
+        ]]
+    competitor_batches = priority_competitor_batches + remaining_competitor_batches
     # Keep room for broad market catalysts, but never allow them to displace more
     # than five of the twenty article slots.
     market: list[dict[str, str]] = []
@@ -792,23 +1013,11 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
         if len(market) >= MAX_MARKET_STORIES:
             break
     selected_all: list[dict[str, str]] = list(market)
-    for holding, detailed_stories in holding_batches:
-        if len(selected_all) >= MAX_STORIES:
-            break
-        selected = []
-        holding_limit = holding_story_limit(holding)
-        for detailed in detailed_stories:
-            if holding_limit is not None and len(selected) >= holding_limit:
-                break
-            content = detailed["title"] + " " + detailed["summary"] if detailed else ""
-            if not detailed or SPECULATION.search(content) or excluded_from_digest(content, holding, detailed["source"]) or is_duplicate(detailed, selected_all):
-                continue
-            selected.append(detailed)
-            selected_all.append(detailed)
-            if len(selected_all) >= MAX_STORIES:
-                break
-        if selected:
-            results[holding] = selected
+    # Select portfolio news first, reserve four of the twenty story slots for
+    # peer context, then return any unused reserve to the portfolio itself.
+    select_batches(holding_batches, results, selected_all, MAX_STORIES - MAX_COMPETITOR_STORIES)
+    select_batches(competitor_batches, results, selected_all, MAX_STORIES)
+    select_batches(holding_batches, results, selected_all, MAX_STORIES)
     return results, market, notable_price_action()
 
 
@@ -833,11 +1042,18 @@ def render(grouped: dict[Holding, list[dict[str, str]]], market: list[dict[str, 
         items = "".join(story_markup(s) for s in market)
         markup.append(f"<h3>Market and major-name developments</h3><ul>{items}</ul>")
     for holding, stories in grouped.items():
-        plain.append(holding.name)
+        heading = f"Competitor watch — {holding.competitor_for}" if holding.competitor_for else holding.name
+        plain.append(heading)
+        if holding.competitor_for:
+            plain.append(f"Baseline peers: {holding.detail}")
         plain.extend(story_plain(s) for s in stories)
         plain.append("")
         items = "".join(story_markup(s) for s in stories)
-        markup.append(f"<h3>{html.escape(holding.name)}</h3><ul>{items}</ul>")
+        peer_note = (
+            f"<p><small>Baseline peers: {html.escape(holding.detail)}</small></p>"
+            if holding.competitor_for else ""
+        )
+        markup.append(f"<h3>{html.escape(heading)}</h3>{peer_note}<ul>{items}</ul>")
     footer = "Informational only — verify primary sources before making investment decisions."
     plain.extend([footer, "Routine price moves and stock-picking speculation are intentionally excluded."])
     markup.append(f"<hr><p><small>{footer}<br>Routine price moves and stock-picking speculation are intentionally excluded.</small></p>")

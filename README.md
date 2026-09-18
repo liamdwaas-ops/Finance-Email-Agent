@@ -1,10 +1,40 @@
 # Daily portfolio news brief
 
-This agent gathers relevant, recent news for the portfolio, removes stories already sent, writes a concise email brief, and sends it at 6:00am AEST each morning.
+This agent gathers relevant, recent news for the portfolio, removes stories already sent, writes a concise email brief, and sends it at 7:10am AEST each morning after sourcing from 4:00am AEST.
 
 In addition to the listed equities and ETFs, it tracks Hyperliquid, Aave, HyperLend, Bitcoin, Ethereum, Kinetiq, Tether/USDT, USD Coin/USDC, Ethena USDe, Ethena/ENA, and Rabby Wallet. It also tracks the current top-five constituents of VOO, XLV, and NUKZ; each constituent is clearly labelled with its parent ETF in the email.
 
+For every monitored listed equity, the agent also searches a baseline of four listed direct peers. Peer stories appear under a clearly labelled **Competitor watch — [portfolio holding]** section and name the four stocks being used for context. The portfolio holding's own news remains the priority; four of the twenty article slots are initially reserved for material peer developments, with unused slots returned to portfolio stories. Cryptoassets and ETFs do not have direct listed-stock equivalents, so they retain their existing protocol, sector and broad-market coverage; their monitored equity constituents do have peer baselines.
+
 It intentionally excludes routine price moves. Material moves can be included when an article describes the reason (earnings, guidance, analyst action, regulation, a major product event, etc.).
+
+## Competitor baseline
+
+The baseline is intentionally a fixed, reviewable starting point rather than an investment recommendation. It is used only to find material industry context; irrelevant, duplicate, speculative and routine-price stories remain excluded.
+
+- SharkNinja: Whirlpool, Spectrum Brands, Helen of Troy, De'Longhi
+- Costco: Walmart, BJ's Wholesale Club, Target, Kroger
+- Meta: Alphabet, Snap, Pinterest, Reddit
+- Cloudflare: Akamai, Fastly, Zscaler, Palo Alto Networks
+- Applied Digital: CoreWeave, Core Scientific, Nebius, Hut 8
+- Seagate: Western Digital, Toshiba, NetApp, Pure Storage
+- SanDisk: Micron, Western Digital, Kioxia, Samsung Electronics
+- Arm: Qualcomm, AMD, Intel, Synopsys
+- NVIDIA: AMD, Broadcom, Intel, Marvell Technology
+- Cameco: Kazatomprom, Uranium Energy, Energy Fuels, Denison Mines
+- GE Vernova: Siemens Energy, Mitsubishi Heavy Industries, Eaton, Schneider Electric
+- Rolls-Royce: GE Aerospace, RTX, Safran, BAE Systems
+- Endesa: Iberdrola, Enel, E.ON, RWE
+- CEZ: E.ON, RWE, Fortum, Enel
+- Eli Lilly: Novo Nordisk, Amgen, Pfizer, Bristol Myers Squibb
+- Johnson & Johnson: AbbVie, Pfizer, Merck, Medtronic
+- AbbVie: Amgen, Gilead Sciences, Bristol Myers Squibb, Johnson & Johnson
+- UnitedHealth: Elevance Health, CVS Health, Cigna, Humana
+- Merck: Pfizer, Bristol Myers Squibb, AstraZeneca, Novartis
+- Apple: Samsung Electronics, Dell, HP, Sony
+- Microsoft: Alphabet, Amazon, Oracle, Salesforce
+- Amazon: Walmart, Alibaba, Shopify, Target
+- Alphabet: Meta, Microsoft, Amazon, Snap
 
 ## One-time setup
 

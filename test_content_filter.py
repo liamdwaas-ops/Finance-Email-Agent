@@ -5,8 +5,10 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from portfolio_digest import (
-    ArticleParser, Holding, LinkParser, TALK_SHOW_PROMOTION, article_summary, excluded_from_digest,
-    holding_story_limit, is_recent, load_pending_digest, prioritised_holding_groups, save_pending_digest,
+    ArticleParser, COMPETITOR_BASELINES, COMPETITOR_WATCHLIST, HOLDINGS, Holding, LinkParser,
+    TALK_SHOW_PROMOTION, article_summary, excluded_from_digest, holding_story_limit, is_recent,
+    load_pending_digest, prioritised_competitor_groups, prioritised_holding_groups, render,
+    save_pending_digest,
 )
 
 
@@ -95,6 +97,29 @@ class ArticleContentFilterTests(unittest.TestCase):
         self.assertEqual(priority[-1].name, "Hyperliquid (HYPE)")
         self.assertNotIn("Bitcoin (BTC)", {holding.name for holding in priority})
         self.assertIn("Bitcoin (BTC)", {holding.name for holding in remaining})
+
+    def test_equity_holdings_have_four_listed_competitor_baselines(self):
+        portfolio_names = {holding.name for holding in HOLDINGS}
+        self.assertEqual(len(COMPETITOR_WATCHLIST), 23)
+        self.assertEqual(set(COMPETITOR_BASELINES), {holding.competitor_for for holding in COMPETITOR_WATCHLIST})
+        self.assertTrue(set(COMPETITOR_BASELINES).issubset(portfolio_names))
+        self.assertTrue(all(len(peers) == 4 for peers in COMPETITOR_BASELINES.values()))
+        self.assertTrue(all(holding.aliases and holding.detail for holding in COMPETITOR_WATCHLIST))
+        priority, remaining = prioritised_competitor_groups()
+        self.assertEqual(len(priority), 9)
+        self.assertEqual(len(priority) + len(remaining), len(COMPETITOR_WATCHLIST))
+
+    def test_competitor_stories_are_labelled_with_the_related_holding_and_baseline(self):
+        competitor_watch = COMPETITOR_WATCHLIST[0]
+        story = {
+            "summary": "Whirlpool reported a material product launch that expands its appliance range.",
+            "link": "https://example.com/whirlpool",
+            "source": "Reuters",
+        }
+        plain, markup = render({competitor_watch: [story]}, [], [])
+        self.assertIn("Competitor watch — SharkNinja (SN)", plain)
+        self.assertIn("Baseline peers: Whirlpool (WHR)", plain)
+        self.assertIn("Competitor watch — SharkNinja (SN)", markup)
 
     def test_first_party_links_and_metadata_dates_are_available_for_screening(self):
         links = LinkParser("https://news.example.com/index")
