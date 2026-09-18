@@ -1,4 +1,5 @@
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -64,6 +65,11 @@ class ArticleContentFilterTests(unittest.TestCase):
         self.assertTrue(excluded_from_digest("Bitcoin developers released a new testnet client.", bitcoin))
         self.assertFalse(excluded_from_digest("Bitcoin hard fork upgrade date was announced.", bitcoin))
 
+    def test_rejects_named_show_and_investment_hypothetical_stories(self):
+        for phrase in ("The Exchange", "Squawk Box", "Money Talk", "Mad Money", "Closing Bell", "If you invested"):
+            with self.subTest(phrase=phrase):
+                self.assertTrue(excluded_from_digest(f"Portfolio update from {phrase} today."))
+
     def test_identifies_talk_show_guest_promotions(self):
         self.assertTrue(TALK_SHOW_PROMOTION.search("Chief executive to appear as a guest on a talk show."))
         self.assertTrue(TALK_SHOW_PROMOTION.search("Podcast guest appearance announced for the founder."))
@@ -95,7 +101,9 @@ class ArticleContentFilterTests(unittest.TestCase):
         links.feed('<a href="/release">Company announces a material product launch</a>')
         self.assertEqual(links.links, [("Company announces a material product launch", "https://news.example.com/release")])
         parser = ArticleParser()
-        parser.feed('<meta property="article:published_time" content="2026-09-11T09:30:00Z">')
+        parser.feed(
+            f'<meta property="article:published_time" content="{datetime.now(UTC).isoformat()}">'
+        )
         self.assertTrue(is_recent({"published": parser.published}))
 
 

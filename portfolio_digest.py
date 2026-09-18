@@ -171,6 +171,11 @@ TALK_SHOW_PROMOTION = re.compile(
     r"(?:talk show|podcast|show|interview).*?(?:guest|appearance)",
     re.IGNORECASE,
 )
+EXCLUDED_STORY_TERMS = re.compile(
+    r"\bthe exchange\b|\bsquawk box\b|\bmoney talk\b|\bmad money\b|"
+    r"\bclosing bell\b|\bif you invested\b",
+    re.IGNORECASE,
+)
 TRON_RELATED = re.compile(r"\btron\b|\btrx\b|\bjustin sun\b", re.IGNORECASE)
 CHAIN_DEVELOPMENT = re.compile(
     r"developer|development|devnet|testnet|client|roadmap|foundation|research|"
@@ -680,6 +685,8 @@ def record_delivery(history: dict[str, str], payload: dict[str, object]) -> None
 
 def excluded_from_digest(text: str, holding: Holding | None = None, source: str = "") -> bool:
     """Apply editorial exclusions that are independent of an article's relevance."""
+    if EXCLUDED_STORY_TERMS.search(text):
+        return True
     if TRON_RELATED.search(text):
         return True
     if source.lower() == "the block" and THE_BLOCK_SURVEY.search(text):
