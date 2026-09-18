@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from portfolio_digest import (
     ArticleParser, COMPETITOR_BASELINES, COMPETITOR_WATCHLIST, HOLDINGS, Holding, LinkParser,
+    MAX_COMPETITOR_STORIES,
     TALK_SHOW_PROMOTION, article_summary, excluded_from_digest, holding_story_limit, is_recent,
     load_pending_digest, prioritised_competitor_groups, prioritised_holding_groups, render,
     save_pending_digest,
@@ -108,6 +109,9 @@ class ArticleContentFilterTests(unittest.TestCase):
         priority, remaining = prioritised_competitor_groups()
         self.assertEqual(len(priority), 9)
         self.assertEqual(len(priority) + len(remaining), len(COMPETITOR_WATCHLIST))
+
+    def test_six_story_slots_are_reserved_for_competitor_context(self):
+        self.assertEqual(MAX_COMPETITOR_STORIES, 6)
 
     def test_competitor_stories_are_labelled_with_the_related_holding_and_baseline(self):
         competitor_watch = COMPETITOR_WATCHLIST[0]

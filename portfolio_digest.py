@@ -386,7 +386,7 @@ MAX_STORIES = 20
 MAX_MARKET_STORIES = 5
 # Preserve room for material peer developments without letting them displace
 # the portfolio's own news. A second pass gives unused peer slots back.
-MAX_COMPETITOR_STORIES = 4
+MAX_COMPETITOR_STORIES = 6
 MAX_FIRST_PARTY_CANDIDATES_PER_HOLDING = 12
 MAX_STORIES_PER_HOLDING = {
     "Bitcoin (BTC)": 2,
@@ -1013,7 +1013,7 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
         if len(market) >= MAX_MARKET_STORIES:
             break
     selected_all: list[dict[str, str]] = list(market)
-    # Select portfolio news first, reserve four of the twenty story slots for
+    # Select portfolio news first, reserve six of the twenty story slots for
     # peer context, then return any unused reserve to the portfolio itself.
     select_batches(holding_batches, results, selected_all, MAX_STORIES - MAX_COMPETITOR_STORIES)
     select_batches(competitor_batches, results, selected_all, MAX_STORIES)
