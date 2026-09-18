@@ -6,10 +6,10 @@ from unittest.mock import patch
 
 from portfolio_digest import (
     ArticleParser, COMPETITOR_BASELINES, COMPETITOR_WATCHLIST, HOLDINGS, Holding, LinkParser,
-    MAX_COMPETITOR_STORIES,
+    MAX_COMPETITOR_STORIES, MAX_MARKET_STORIES, MAX_STORIES,
     TALK_SHOW_PROMOTION, article_summary, excluded_from_digest, holding_story_limit, is_recent,
     load_pending_digest, prioritised_competitor_groups, prioritised_holding_groups, render,
-    save_pending_digest,
+    price_impact_score, save_pending_digest,
 )
 
 
@@ -89,6 +89,9 @@ class ArticleContentFilterTests(unittest.TestCase):
     def test_bitcoin_and_ethereum_each_have_a_two_story_limit(self):
         self.assertEqual(holding_story_limit(Holding("Bitcoin (BTC)", "Bitcoin", ("bitcoin",))), 2)
         self.assertEqual(holding_story_limit(Holding("Ethereum (ETH)", "Ethereum", ("ethereum",))), 2)
+        self.assertEqual(holding_story_limit(Holding("Health Care Select Sector SPDR (XLV)", "XLV", ("xlv",))), 2)
+        self.assertEqual(holding_story_limit(Holding("Vanguard S&P 500 ETF (VOO)", "VOO", ("voo",))), 2)
+        self.assertEqual(holding_story_limit(Holding("Peer watch", "Peer", ("peer",), competitor_for="Costco (COST)")), 3)
         self.assertIsNone(holding_story_limit(Holding("Costco (COST)", "Costco", ("costco",))))
 
     def test_core_holdings_are_sourced_before_the_broader_portfolio(self):
@@ -112,6 +115,13 @@ class ArticleContentFilterTests(unittest.TestCase):
 
     def test_six_story_slots_are_reserved_for_competitor_context(self):
         self.assertEqual(MAX_COMPETITOR_STORIES, 6)
+
+    def test_story_caps_and_price_impact_priority(self):
+        self.assertEqual(MAX_STORIES, 25)
+        self.assertEqual(MAX_MARKET_STORIES, 4)
+        earnings = {"title": "Company raises guidance after earnings beat", "summary": "Revenue and profit exceeded expectations."}
+        product = {"title": "Company launches a new product", "summary": "The innovation expands its range."}
+        self.assertGreater(price_impact_score(earnings), price_impact_score(product))
 
     def test_competitor_stories_are_labelled_with_the_related_holding_and_baseline(self):
         competitor_watch = COMPETITOR_WATCHLIST[0]

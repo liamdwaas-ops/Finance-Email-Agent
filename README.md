@@ -4,7 +4,7 @@ This agent gathers relevant, recent news for the portfolio, removes stories alre
 
 In addition to the listed equities and ETFs, it tracks Hyperliquid, Aave, HyperLend, Bitcoin, Ethereum, Kinetiq, Tether/USDT, USD Coin/USDC, Ethena USDe, Ethena/ENA, and Rabby Wallet. It also tracks the current top-five constituents of VOO, XLV, and NUKZ; each constituent is clearly labelled with its parent ETF in the email.
 
-For every monitored listed equity, the agent also searches a baseline of four listed direct peers. Peer stories appear under a clearly labelled **Competitor watch — [portfolio holding]** section and name the four stocks being used for context. The portfolio holding's own news remains the priority; six of the twenty article slots are initially reserved for material peer developments, with unused slots returned to portfolio stories. Cryptoassets and ETFs do not have direct listed-stock equivalents, so they retain their existing protocol, sector and broad-market coverage; their monitored equity constituents do have peer baselines.
+For every monitored listed equity, the agent also searches a baseline of four listed direct peers. Peer stories appear under a clearly labelled **Competitor watch — [portfolio holding]** section and name the four stocks being used for context. The portfolio holding's own news remains the priority; six of the twenty-five article slots are initially reserved for material peer developments, with unused slots returned to portfolio stories. Cryptoassets and ETFs do not have direct listed-stock equivalents, so they retain their existing protocol, sector and broad-market coverage; their monitored equity constituents do have peer baselines.
 
 It intentionally excludes routine price moves. Material moves can be included when an article describes the reason (earnings, guidance, analyst action, regulation, a major product event, etc.).
 
@@ -82,7 +82,7 @@ Items must be no more than three days old and match meaningful catalysts. The co
 
 For Cloudflare, SanDisk, SharkNinja, Costco, Meta, Applied Digital, Seagate, Arm, and NVIDIA, the supplied official investor-relations/newsroom indexes are also queried directly. The agent follows their release links, reads the linked page, and includes only dated articles from the last three days.
 
-Each brief is capped at **20 articles**. Up to five slots are reserved for material market or major-name developments; the remaining slots are filled by the most relevant, non-duplicative portfolio stories. Bitcoin and Ethereum are each limited to two articles per brief.
+Each brief is capped at **25 articles**. Market and major-name developments are limited to four stories. VOO and XLV are each limited to two fund-level stories, while each portfolio holding's competitor-watch section can contain up to three stories. Bitcoin and Ethereum are each limited to two articles per brief. Eligible stories are ranked toward events most likely to affect valuation or risk perception—such as earnings, guidance, contracts, regulation, analyst actions, capital returns and material strategic developments—before feed order.
 
 The brief also includes a **Notable price action** section only when BTC, ETH, USDT, USDC, USDe, VOO, NUKZ, or XLV crosses a material three-session move/depeg threshold. It is not a daily price ticker.
 

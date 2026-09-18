@@ -322,6 +322,20 @@ CATALYST = re.compile(
     r"debt ceiling|government shutdown|tax|inflation|recession",
     re.IGNORECASE,
 )
+# Feed order is not an editorial judgment. Rank accepted stories toward events
+# most likely to change cash-flow expectations, valuation, or risk perception.
+HIGH_PRICE_IMPACT = re.compile(
+    r"earnings|quarter(?:ly)? results|revenue|guidance|forecast|outlook|profit|loss|"
+    r"dividend|buyback|analyst|upgrade|downgrade|price target|acquisition|merger|"
+    r"regulat|antitrust|tariff|sanction|lawsuit|investigation",
+    re.IGNORECASE,
+)
+MEDIUM_PRICE_IMPACT = re.compile(
+    r"contract|partnership|agreement|approval|trial|drug|ceo|data cent(?:er|re)|"
+    r"cloud|security|chip|nuclear|energy|treasury|interest rate|inflation|recession",
+    re.IGNORECASE,
+)
+LOWER_PRICE_IMPACT = re.compile(r"product|launch|innovation|ai |policy|tax", re.IGNORECASE)
 PRICE_ONLY = re.compile(r"^(?:why |how |)(?:[\w .'-]+ )?(?:stock|shares?) (?:is |are )?(?:up|down|soaring|falling|rising|dropping)", re.IGNORECASE)
 ROUTINE_MOVE = re.compile(r"stock(?:s)? (?:trade|fall|rise|surge|drop)|shares? (?:trade|fall|rise|surge|drop)|price: posts", re.IGNORECASE)
 SPECULATION = re.compile(
@@ -382,8 +396,8 @@ MARKET_QUERIES = (
     '"S&P 500" OR "US stock market" OR Wall Street',
     'Nvidia OR Microsoft OR Apple OR Amazon OR Alphabet OR Tesla',
 )
-MAX_STORIES = 20
-MAX_MARKET_STORIES = 5
+MAX_STORIES = 25
+MAX_MARKET_STORIES = 4
 # Preserve room for material peer developments without letting them displace
 # the portfolio's own news. A second pass gives unused peer slots back.
 MAX_COMPETITOR_STORIES = 6
@@ -391,6 +405,8 @@ MAX_FIRST_PARTY_CANDIDATES_PER_HOLDING = 12
 MAX_STORIES_PER_HOLDING = {
     "Bitcoin (BTC)": 2,
     "Ethereum (ETH)": 2,
+    "Health Care Select Sector SPDR (XLV)": 2,
+    "Vanguard S&P 500 ETF (VOO)": 2,
 }
 STOP_WORDS = frozenset("a an and are as at be by for from how in is it its of on or that the this to was what when where which with why".split())
 NON_ARTICLE_TEXT = re.compile(
@@ -866,7 +882,22 @@ def excluded_from_digest(text: str, holding: Holding | None = None, source: str 
 
 
 def holding_story_limit(holding: Holding) -> int | None:
+    if holding.competitor_for:
+        return 3
     return MAX_STORIES_PER_HOLDING.get(holding.name)
+
+
+def price_impact_score(story: dict[str, str]) -> int:
+    """Prioritise share-price catalysts after the usual relevance filters pass."""
+    title = story.get("title", "")
+    content = title + " " + story.get("summary", "")
+    return (
+        12 * bool(HIGH_PRICE_IMPACT.search(content))
+        + 5 * bool(MEDIUM_PRICE_IMPACT.search(content))
+        + 2 * bool(LOWER_PRICE_IMPACT.search(content))
+        + 4 * bool(HIGH_PRICE_IMPACT.search(title))
+        + 2 * bool(MEDIUM_PRICE_IMPACT.search(title))
+    )
 
 
 def prioritised_holding_groups() -> tuple[tuple[Holding, ...], tuple[Holding, ...]]:
@@ -956,7 +987,7 @@ def select_batches(
             return
         selected = results.setdefault(holding, [])
         holding_limit = holding_story_limit(holding)
-        for detailed in detailed_stories:
+        for detailed in sorted(detailed_stories, key=price_impact_score, reverse=True):
             if holding_limit is not None and len(selected) >= holding_limit:
                 break
             content = detailed["title"] + " " + detailed["summary"] if detailed else ""
@@ -998,22 +1029,21 @@ def collect(history: dict[str, str]) -> tuple[dict[Holding, list[dict[str, str]]
         ]]
     competitor_batches = priority_competitor_batches + remaining_competitor_batches
     # Keep room for broad market catalysts, but never allow them to displace more
-    # than five of the twenty article slots.
+    # than four of the twenty-five article slots.
     market: list[dict[str, str]] = []
     with ThreadPoolExecutor(max_workers=len(MARKET_QUERIES)) as executor:
         market_batches = [future.result() for future in [executor.submit(collect_market, query, history) for query in MARKET_QUERIES]]
-    for detailed_stories in market_batches:
-        for detailed in detailed_stories:
-            content = detailed["title"] + " " + detailed["summary"] if detailed else ""
-            if not detailed or SPECULATION.search(content) or excluded_from_digest(content, source=detailed["source"]) or is_duplicate(detailed, market):
-                continue
-            market.append(detailed)
-            if len(market) >= MAX_MARKET_STORIES:
-                break
+    for detailed in sorted(
+        (story for batch in market_batches for story in batch), key=price_impact_score, reverse=True
+    ):
+        content = detailed["title"] + " " + detailed["summary"] if detailed else ""
+        if not detailed or SPECULATION.search(content) or excluded_from_digest(content, source=detailed["source"]) or is_duplicate(detailed, market):
+            continue
+        market.append(detailed)
         if len(market) >= MAX_MARKET_STORIES:
             break
     selected_all: list[dict[str, str]] = list(market)
-    # Select portfolio news first, reserve six of the twenty story slots for
+    # Select portfolio news first, reserve six of the twenty-five story slots for
     # peer context, then return any unused reserve to the portfolio itself.
     select_batches(holding_batches, results, selected_all, MAX_STORIES - MAX_COMPETITOR_STORIES)
     select_batches(competitor_batches, results, selected_all, MAX_STORIES)
